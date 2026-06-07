@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../apps/api/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OrganizationPlan {
+  FREE
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+  BILLING
+}
+
+enum AgentStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+model Organization {
+  id        String             @id @default(uuid())
+  name      String
+  plan      OrganizationPlan   @default(FREE)
+  status    OrganizationStatus @default(ACTIVE)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  deletedAt DateTime?
+
+  members OrganizationMember[]
+  agents  Agent[]
+
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  status       UserStatus @default(INVITED)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
+
+  memberships OrganizationMember[]
+
+  @@index([email])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model OrganizationMember {
+  id             String     @id @default(uuid())
+  organizationId String
+  userId         String
+  role           MemberRole @default(MEMBER)
+  createdAt      DateTime   @default(now())
+  deletedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([role])
+  @@index([deletedAt])
+}
+
+model Agent {
+  id             String      @id @default(uuid())
+  organizationId String
+  name           String
+  description    String?
+  language       String      @default("en-US")
+  voice          String      @default("alloy")
+  systemPrompt   String      @db.Text
+  status         AgentStatus @default(DRAFT)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  deletedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([deletedAt])
+}
