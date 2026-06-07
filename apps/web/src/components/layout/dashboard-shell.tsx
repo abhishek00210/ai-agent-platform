@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import {
   Avatar,
@@ -29,7 +29,9 @@ import {
   DropdownMenuTrigger,
   cn,
 } from "@ai-agent-platform/ui";
+import { authApi } from "@/lib/auth-api";
 import { useAppStore } from "@/store/app-store";
+import { useAuthStore } from "@/store/auth-store";
 
 const navItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -113,9 +115,17 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 }
 
 function TopNav() {
+  const router = useRouter();
   const { setSidebarOpen } = useAppStore();
+  const user = useAuthStore((state) => state.user);
   const { theme, setTheme } = useTheme();
   const nextTheme = theme === "dark" ? "light" : "dark";
+  const initials = `${user?.firstName?.[0] ?? "A"}${user?.lastName?.[0] ?? "P"}`.toUpperCase();
+
+  async function handleLogout() {
+    await authApi.logout();
+    router.replace("/login");
+  }
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-zinc-200 bg-white/90 px-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90 sm:px-6 lg:px-8">
@@ -143,9 +153,11 @@ function TopNav() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-10 gap-3 px-2">
               <Avatar>
-                <AvatarFallback>AP</AvatarFallback>
+                <AvatarFallback>{initials}</AvatarFallback>
               </Avatar>
-              <span className="hidden text-sm font-medium sm:inline">Platform Admin</span>
+              <span className="hidden text-sm font-medium sm:inline">
+                {user ? `${user.firstName} ${user.lastName}` : "Platform Admin"}
+              </span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -153,7 +165,7 @@ function TopNav() {
             className="z-50 min-w-48 rounded-md border border-zinc-200 bg-white p-1 text-sm shadow-lg dark:border-zinc-800 dark:bg-zinc-950"
           >
             <DropdownMenuLabel className="px-2 py-1.5 text-xs text-zinc-500">
-              Signed in as admin
+              {user?.email ?? "Signed in"}
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="my-1 h-px bg-zinc-200 dark:bg-zinc-800" />
             <DropdownMenuItem className="cursor-pointer rounded px-2 py-1.5 outline-none hover:bg-zinc-100 dark:hover:bg-zinc-900">
@@ -162,7 +174,10 @@ function TopNav() {
             <DropdownMenuItem className="cursor-pointer rounded px-2 py-1.5 outline-none hover:bg-zinc-100 dark:hover:bg-zinc-900">
               Workspace
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer rounded px-2 py-1.5 outline-none hover:bg-zinc-100 dark:hover:bg-zinc-900">
+            <DropdownMenuItem
+              className="cursor-pointer rounded px-2 py-1.5 outline-none hover:bg-zinc-100 dark:hover:bg-zinc-900"
+              onSelect={handleLogout}
+            >
               Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>

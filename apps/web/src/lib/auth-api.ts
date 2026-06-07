@@ -1,0 +1,129 @@
+import type {
+  AuthResponse,
+  ForgotPasswordInput,
+  LoginInput,
+  RegisterInput,
+  ResetPasswordInput,
+} from "@ai-agent-platform/types";
+import { webEnv } from "@/config/env";
+import { useAuthStore } from "@/store/auth-store";
+
+const apiBaseUrl = `${webEnv.NEXT_PUBLIC_API_URL}/api/v1`;
+
+interface ApiRequestOptions extends RequestInit {
+  skipAuth?: boolean;
+  skipRefresh?: boolean;
+}
+
+export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  const response = await fetchWithAuth(path, options);
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json() as Promise<T>;
+}
+
+export const authApi = {
+  register(input: RegisterInput) {
+    return apiRequest<AuthResponse>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(input),
+      skipAuth: true,
+    });
+  },
+  login(input: LoginInput) {
+    return apiRequest<AuthResponse>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(input),
+      skipAuth: true,
+    });
+  },
+  async refresh(refreshToken: string) {
+    const response = await apiRequest<AuthResponse>("/auth/refresh", {
+      method: "POST",
+      body: JSON.stringify({ refreshToken }),
+      skipAuth: true,
+      skipRefresh: true,
+    });
+    useAuthStore.getState().setSession(response);
+    return response;
+  },
+  forgotPassword(input: ForgotPasswordInput) {
+    return apiRequest<{ success: true }>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify(input),
+      skipAuth: true,
+    });
+  },
+  resetPassword(input: ResetPasswordInput) {
+    return apiRequest<{ success: true }>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify(input),
+      skipAuth: true,
+    });
+  },
+  async logout() {
+    const refreshToken = useAuthStore.getState().refreshToken;
+
+    if (refreshToken) {
+      await apiRequest<{ success: true }>("/auth/logout", {
+        method: "POST",
+        body: JSON.stringify({ refreshToken }),
+        skipRefresh: true,
+      }).catch(() => undefined);
+    }
+
+    useAuthStore.getState().clearSession();
+  },
+};
+
+async function fetchWithAuth(path: string, options: ApiRequestOptions): Promise<Response> {
+  const response = await rawFetch(path, options);
+
+  if (response.status !== 401 || options.skipRefresh) {
+    return response;
+  }
+
+  const refreshToken = useAuthStore.getState().refreshToken;
+
+  if (!refreshToken) {
+    useAuthStore.getState().clearSession();
+    return response;
+  }
+
+  try {
+    await authApi.refresh(refreshToken);
+  } catch {
+    useAuthStore.getState().clearSession();
+    return response;
+  }
+
+  return rawFetch(path, options);
+}
+
+function rawFetch(path: string, options: ApiRequestOptions): Promise<Response> {
+  const headers = new Headers(options.headers);
+  headers.set("Content-Type", "application/json");
+
+  if (!options.skipAuth) {
+    const accessToken = useAuthStore.getState().accessToken;
+
+    if (accessToken) {
+      headers.set("Authorization", `Bearer ${accessToken}`);
+    }
+  }
+
+  return fetch(`${apiBaseUrl}${path}`, {
+    ...options,
+    headers,
+  });
+}
+
+async function readErrorMessage(response: Response): Promise<string> {
+  const body = await response.json().catch(() => null);
+  return typeof body?.message === "string"
+    ? body.message
+    : `Request failed with ${response.status}`;
+}

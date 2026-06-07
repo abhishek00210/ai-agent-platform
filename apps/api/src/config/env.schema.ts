@@ -5,6 +5,7 @@ const envSchema = z.object({
   API_HOST: z.string().default("0.0.0.0"),
   API_PORT: z.coerce.number().int().positive().default(4000),
   API_CORS_ORIGINS: z.string().default("http://localhost:3000"),
+  APP_URL: z.string().url().default("http://localhost:3000"),
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
   JWT_ACCESS_SECRET: z.string().min(16),
@@ -31,6 +32,7 @@ export interface ApiConfig {
   host: string;
   port: number;
   corsOrigins: string[];
+  appUrl: string;
 }
 
 export function validateEnv(config: Record<string, unknown>): RawEnv {
@@ -46,6 +48,7 @@ export const envConfig = () => {
       host: env.API_HOST,
       port: env.API_PORT,
       corsOrigins: env.API_CORS_ORIGINS.split(",").map((origin) => origin.trim()),
+      appUrl: env.APP_URL,
     } satisfies ApiConfig,
     database: {
       url: env.DATABASE_URL,
