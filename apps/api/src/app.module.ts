@@ -22,6 +22,7 @@ import { SecurityModule } from "./security/security.module";
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: [".env", "../../.env"],
       load: [envConfig],
       validate: validateEnv,
     }),
