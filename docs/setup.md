@@ -4,7 +4,8 @@
 
 - Node.js 22+
 - pnpm 10+
-- Docker and Docker Compose
+- PostgreSQL 16+
+- Redis 7+
 
 ## Local Development
 
@@ -21,6 +22,8 @@ The API runs on `http://localhost:4000/api/v1`.
 ## Database
 
 Prisma uses PostgreSQL and reads `DATABASE_URL` from `prisma.config.ts`.
+
+Create a local database named `ai_agent_platform`, then run:
 
 ```bash
 pnpm db:generate

@@ -13,8 +13,6 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,css}\"",
     "db:generate": "pnpm --filter @ai-agent-platform/api db:generate",
     "db:migrate": "pnpm --filter @ai-agent-platform/api db:migrate",
-    "docker:up": "docker compose up",
-    "docker:down": "docker compose down",
     "prepare": "husky || true"
   },
   "devDependencies": {

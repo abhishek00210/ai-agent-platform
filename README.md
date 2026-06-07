@@ -6,10 +6,12 @@ Day 1 production foundation for an AI voice agent SaaS platform.
 
 - Frontend: Next.js 15, TypeScript, Tailwind CSS, shadcn/ui-style primitives, TanStack Query, Zustand, React Hook Form, Zod
 - Backend: NestJS, TypeScript, Prisma, PostgreSQL, Redis
-- Infrastructure: Docker, Docker Compose, Nginx-ready reverse proxy config
+- Infrastructure: Native local services, Nginx-ready reverse proxy config
 - Integrations: structural modules for Twilio, OpenAI Realtime, Stripe, and S3-compatible storage
 
 ## Quick Start
+
+Start PostgreSQL and Redis locally, then run:
 
 ```bash
 cp .env.example .env
@@ -23,19 +25,12 @@ Open:
 - Web: http://localhost:3000
 - API health: http://localhost:4000/api/v1/health
 
-## Docker
+## Local Services
 
-```bash
-cp .env.example .env
-docker-compose up
-```
+The project does not use Docker. Configure `.env` with native/local service URLs:
 
-The Compose stack starts:
-
-- `frontend` on port `3000`
-- `backend` on port `4000`
-- `postgres` on port `5432`
-- `redis` on port `6379`
+- PostgreSQL: `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ai_agent_platform?schema=public`
+- Redis: `REDIS_URL=redis://localhost:6379`
 
 ## Monorepo
 
@@ -48,7 +43,6 @@ packages/types  Shared TypeScript contracts
 packages/sdk    Typed API client structure
 prisma          Prisma schema and migrations
 docs            Setup and architecture docs
-docker          App Dockerfiles
 infrastructure  Nginx-ready config
 ```
 

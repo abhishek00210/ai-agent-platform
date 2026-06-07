@@ -2,21 +2,19 @@
 
 ## Running With pnpm
 
+Start local PostgreSQL and Redis first. The default `.env.example` expects:
+
+- `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ai_agent_platform?schema=public`
+- `REDIS_URL=redis://localhost:6379`
+
 ```bash
+cp .env.example .env
 pnpm install
+pnpm db:generate
 pnpm dev
 ```
 
 Turbo starts the web and API apps in parallel.
-
-## Running With Docker
-
-```bash
-cp .env.example .env
-docker-compose up
-```
-
-Docker Compose is optimized for development hot reload. Source code is mounted into both app containers.
 
 ## Health Check
 
