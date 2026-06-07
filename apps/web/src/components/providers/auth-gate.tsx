@@ -18,6 +18,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }, [hydrated, setHydrated]);
 
   React.useEffect(() => {
+    if (hydrated) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setHydrated(true), 750);
+    return () => window.clearTimeout(timer);
+  }, [hydrated, setHydrated]);
+
+  React.useEffect(() => {
     if (hydrated && !accessToken) {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     }

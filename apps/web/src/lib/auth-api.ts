@@ -1,5 +1,9 @@
 import type {
   AuthResponse,
+  AgentDetails,
+  AgentListQuery,
+  AgentListResponse,
+  CreateAgentInput,
   CurrentOrganization,
   ForgotPasswordInput,
   InviteMemberInput,
@@ -8,6 +12,7 @@ import type {
   OrganizationMemberSummary,
   RegisterInput,
   ResetPasswordInput,
+  UpdateAgentInput,
   UpdateMemberRoleInput,
   UpdateOrganizationInput,
 } from "@ai-agent-platform/types";
@@ -112,6 +117,43 @@ export const authApi = {
   removeOrganizationMember(memberId: string) {
     return apiRequest<{ success: true }>(`/organizations/members/${memberId}`, {
       method: "DELETE",
+    });
+  },
+  agents(query: AgentListQuery = {}) {
+    const search = new URLSearchParams();
+
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== "") {
+        search.set(key, String(value));
+      }
+    }
+
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return apiRequest<AgentListResponse>(`/agents${suffix}`);
+  },
+  createAgent(input: CreateAgentInput) {
+    return apiRequest<AgentDetails>("/agents", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  agent(agentId: string) {
+    return apiRequest<AgentDetails>(`/agents/${agentId}`);
+  },
+  updateAgent(agentId: string, input: UpdateAgentInput) {
+    return apiRequest<AgentDetails>(`/agents/${agentId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+  deleteAgent(agentId: string) {
+    return apiRequest<{ success: true }>(`/agents/${agentId}`, {
+      method: "DELETE",
+    });
+  },
+  duplicateAgent(agentId: string) {
+    return apiRequest<AgentDetails>(`/agents/${agentId}/duplicate`, {
+      method: "POST",
     });
   },
 };

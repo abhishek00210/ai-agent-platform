@@ -1,11 +1,17 @@
 import { create } from "zustand";
 
 interface AppState {
-  sidebarOpen: boolean;
-  setSidebarOpen: (open: boolean) => void;
+  mobileSidebarOpen: boolean;
+  sidebarCollapsed: boolean;
+  setMobileSidebarOpen: (open: boolean) => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
+  toggleSidebarCollapsed: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  sidebarOpen: false,
-  setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  mobileSidebarOpen: false,
+  sidebarCollapsed: false,
+  setMobileSidebarOpen: (open) => set({ mobileSidebarOpen: open }),
+  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+  toggleSidebarCollapsed: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 }));

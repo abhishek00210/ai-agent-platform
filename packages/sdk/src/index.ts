@@ -1,5 +1,9 @@
 import type {
   AuthResponse,
+  AgentDetails,
+  AgentListQuery,
+  AgentListResponse,
+  CreateAgentInput,
   ForgotPasswordInput,
   HealthResponse,
   CurrentOrganization,
@@ -9,6 +13,7 @@ import type {
   OrganizationMemberSummary,
   RegisterInput,
   ResetPasswordInput,
+  UpdateAgentInput,
   UpdateMemberRoleInput,
   UpdateOrganizationInput,
 } from "@ai-agent-platform/types";
@@ -108,6 +113,49 @@ export class ApiClient {
   async removeOrganizationMember(memberId: string): Promise<{ success: true }> {
     return this.request<{ success: true }>(`/organizations/members/${memberId}`, {
       method: "DELETE",
+    });
+  }
+
+  async agents(query: AgentListQuery = {}): Promise<AgentListResponse> {
+    const search = new URLSearchParams();
+
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== "") {
+        search.set(key, String(value));
+      }
+    }
+
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return this.request<AgentListResponse>(`/agents${suffix}`);
+  }
+
+  async createAgent(input: CreateAgentInput): Promise<AgentDetails> {
+    return this.request<AgentDetails>("/agents", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async agent(agentId: string): Promise<AgentDetails> {
+    return this.request<AgentDetails>(`/agents/${agentId}`);
+  }
+
+  async updateAgent(agentId: string, input: UpdateAgentInput): Promise<AgentDetails> {
+    return this.request<AgentDetails>(`/agents/${agentId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async deleteAgent(agentId: string): Promise<{ success: true }> {
+    return this.request<{ success: true }>(`/agents/${agentId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async duplicateAgent(agentId: string): Promise<AgentDetails> {
+    return this.request<AgentDetails>(`/agents/${agentId}/duplicate`, {
+      method: "POST",
     });
   }
 

@@ -2,7 +2,7 @@ export type OrganizationPlan = "FREE" | "STARTER" | "GROWTH" | "ENTERPRISE";
 export type OrganizationStatus = "ACTIVE" | "SUSPENDED" | "ARCHIVED";
 export type UserStatus = "ACTIVE" | "INVITED" | "SUSPENDED";
 export type MemberRole = "OWNER" | "ADMIN" | "MEMBER";
-export type AgentStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "ARCHIVED";
+export type AgentStatus = "ACTIVE" | "INACTIVE" | "DRAFT";
 
 export interface OrganizationSummary {
   id: string;
@@ -70,7 +70,42 @@ export interface AgentSummary {
   description: string | null;
   language: string;
   voice: string;
+  systemPrompt: string;
   status: AgentStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AgentDetails = AgentSummary;
+
+export interface AgentListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  data: AgentSummary[];
+}
+
+export interface AgentListQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: AgentStatus;
+}
+
+export interface CreateAgentInput {
+  name: string;
+  description?: string;
+  language: string;
+  voice: string;
+  systemPrompt: string;
+  status: AgentStatus;
+}
+
+export type UpdateAgentInput = Partial<CreateAgentInput>;
+
+export interface AgentOption {
+  label: string;
+  value: string;
 }
 
 export interface ApiEnvelope<T> {

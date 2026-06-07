@@ -33,10 +33,9 @@ enum MemberRole {
 }
 
 enum AgentStatus {
-  DRAFT
   ACTIVE
-  PAUSED
-  ARCHIVED
+  INACTIVE
+  DRAFT
 }
 
 model Organization {
@@ -188,4 +187,5 @@ model Agent {
   @@index([organizationId])
   @@index([status])
   @@index([deletedAt])
+  @@map("agents")
 }
