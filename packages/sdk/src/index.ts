@@ -2,9 +2,15 @@ import type {
   AuthResponse,
   ForgotPasswordInput,
   HealthResponse,
+  CurrentOrganization,
+  InviteMemberInput,
   LoginInput,
+  OrganizationInvitationSummary,
+  OrganizationMemberSummary,
   RegisterInput,
   ResetPasswordInput,
+  UpdateMemberRoleInput,
+  UpdateOrganizationInput,
 } from "@ai-agent-platform/types";
 
 export interface ApiClientOptions {
@@ -64,6 +70,44 @@ export class ApiClient {
     return this.request<{ success: true }>("/auth/reset-password", {
       method: "POST",
       body: JSON.stringify(input),
+    });
+  }
+
+  async currentOrganization(): Promise<CurrentOrganization> {
+    return this.request<CurrentOrganization>("/organizations/current");
+  }
+
+  async updateCurrentOrganization(input: UpdateOrganizationInput): Promise<CurrentOrganization> {
+    return this.request<CurrentOrganization>("/organizations/current", {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async organizationMembers(): Promise<OrganizationMemberSummary[]> {
+    return this.request<OrganizationMemberSummary[]>("/organizations/members");
+  }
+
+  async inviteOrganizationMember(input: InviteMemberInput): Promise<OrganizationInvitationSummary> {
+    return this.request<OrganizationInvitationSummary>("/organizations/members", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async updateOrganizationMemberRole(
+    memberId: string,
+    input: UpdateMemberRoleInput,
+  ): Promise<OrganizationMemberSummary> {
+    return this.request<OrganizationMemberSummary>(`/organizations/members/${memberId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async removeOrganizationMember(memberId: string): Promise<{ success: true }> {
+    return this.request<{ success: true }>(`/organizations/members/${memberId}`, {
+      method: "DELETE",
     });
   }
 

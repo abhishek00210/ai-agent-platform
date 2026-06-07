@@ -62,6 +62,7 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         organizationId: organization.id,
+        role: "OWNER",
       },
       deviceInfo,
     );
@@ -83,9 +84,9 @@ export class AuthService {
     }
 
     const userWithMembership = await this.users.findById(user.id);
-    const organizationId = userWithMembership?.memberships[0]?.organizationId;
+    const membership = userWithMembership?.memberships[0];
 
-    if (!organizationId) {
+    if (!membership) {
       throw new UnauthorizedException("User is not assigned to an organization.");
     }
 
@@ -95,7 +96,8 @@ export class AuthService {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        organizationId,
+        organizationId: membership.organizationId,
+        role: membership.role,
       },
       deviceInfo,
     );
@@ -120,9 +122,9 @@ export class AuthService {
       throw new UnauthorizedException("Invalid refresh token.");
     }
 
-    const organizationId = storedToken.user.memberships[0]?.organizationId;
+    const membership = storedToken.user.memberships[0];
 
-    if (!organizationId) {
+    if (!membership) {
       throw new UnauthorizedException("User is not assigned to an organization.");
     }
 
@@ -136,7 +138,8 @@ export class AuthService {
       email: storedToken.user.email,
       firstName: storedToken.user.firstName,
       lastName: storedToken.user.lastName,
-      organizationId,
+      organizationId: membership.organizationId,
+      role: membership.role,
     };
 
     return {
@@ -215,6 +218,7 @@ export class AuthService {
       userId: user.id,
       organizationId: user.organizationId,
       email: user.email,
+      role: user.role,
     };
 
     return this.jwtService.signAsync(payload, {

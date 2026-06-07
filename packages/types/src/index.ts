@@ -1,14 +1,56 @@
 export type OrganizationPlan = "FREE" | "STARTER" | "GROWTH" | "ENTERPRISE";
 export type OrganizationStatus = "ACTIVE" | "SUSPENDED" | "ARCHIVED";
 export type UserStatus = "ACTIVE" | "INVITED" | "SUSPENDED";
-export type MemberRole = "OWNER" | "ADMIN" | "MEMBER" | "BILLING";
+export type MemberRole = "OWNER" | "ADMIN" | "MEMBER";
 export type AgentStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "ARCHIVED";
 
 export interface OrganizationSummary {
   id: string;
   name: string;
+  slug: string;
   plan: OrganizationPlan;
   status: OrganizationStatus;
+}
+
+export interface CurrentOrganization extends OrganizationSummary {
+  memberCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrganizationMemberSummary {
+  id: string;
+  role: MemberRole;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    status: UserStatus;
+  };
+}
+
+export interface OrganizationInvitationSummary {
+  id: string;
+  email: string;
+  role: MemberRole;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface InviteMemberInput {
+  email: string;
+  role: MemberRole;
+}
+
+export interface UpdateOrganizationInput {
+  name: string;
+}
+
+export interface UpdateMemberRoleInput {
+  role: MemberRole;
 }
 
 export interface UserProfile {
@@ -16,6 +58,8 @@ export interface UserProfile {
   email: string;
   firstName: string;
   lastName: string;
+  organizationId: string;
+  role: MemberRole;
   status: UserStatus;
 }
 
@@ -50,6 +94,7 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   organizationId: string;
+  role: MemberRole;
 }
 
 export interface AuthResponse {

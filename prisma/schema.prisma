@@ -30,7 +30,6 @@ enum MemberRole {
   OWNER
   ADMIN
   MEMBER
-  BILLING
 }
 
 enum AgentStatus {
@@ -43,6 +42,7 @@ enum AgentStatus {
 model Organization {
   id        String             @id @default(uuid())
   name      String
+  slug      String             @unique
   plan      OrganizationPlan   @default(FREE)
   status    OrganizationStatus @default(ACTIVE)
   createdAt DateTime           @default(now())
@@ -51,7 +51,10 @@ model Organization {
 
   members OrganizationMember[]
   agents  Agent[]
+  invitations OrganizationInvitation[]
+  auditEvents AuditEvent[]
 
+  @@index([slug])
   @@index([status])
   @@index([deletedAt])
 }
@@ -70,6 +73,8 @@ model User {
   memberships OrganizationMember[]
   refreshTokens RefreshToken[]
   passwordResetTokens PasswordResetToken[]
+  sentInvitations OrganizationInvitation[] @relation("OrganizationInvitationInviter")
+  auditEvents AuditEvent[] @relation("AuditEventActor")
 
   @@index([email])
   @@index([status])
@@ -113,6 +118,7 @@ model OrganizationMember {
   userId         String
   role           MemberRole @default(MEMBER)
   createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
   deletedAt      DateTime?
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -123,6 +129,45 @@ model OrganizationMember {
   @@index([userId])
   @@index([role])
   @@index([deletedAt])
+}
+
+model OrganizationInvitation {
+  id             String     @id @default(uuid())
+  organizationId String
+  email          String
+  role           MemberRole @default(MEMBER)
+  invitedById    String
+  acceptedAt     DateTime?
+  expiresAt      DateTime
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("OrganizationInvitationInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@index([email])
+  @@index([acceptedAt])
+}
+
+model AuditEvent {
+  id             String   @id @default(uuid())
+  organizationId String
+  actorUserId    String?
+  action         String
+  entityType     String
+  entityId       String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor       User?        @relation("AuditEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([actorUserId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model Agent {

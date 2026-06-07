@@ -9,6 +9,7 @@ import { HealthModule } from "./modules/health/health.module";
 import { MailModule } from "./modules/mail/mail.module";
 import { OrganizationModule } from "./modules/organization/organization.module";
 import { StorageModule } from "./modules/storage/storage.module";
+import { TenantModule } from "./modules/tenant/tenant.module";
 import { TwilioModule } from "./modules/twilio/twilio.module";
 import { UserModule } from "./modules/user/user.module";
 import { VoiceModule } from "./modules/voice/voice.module";
@@ -38,6 +39,7 @@ import { SecurityModule } from "./security/security.module";
     }),
     DatabaseModule,
     RedisModule,
+    TenantModule,
     SecurityModule,
     AuthModule,
     UserModule,

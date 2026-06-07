@@ -1,9 +1,15 @@
 import type {
   AuthResponse,
+  CurrentOrganization,
   ForgotPasswordInput,
+  InviteMemberInput,
   LoginInput,
+  OrganizationInvitationSummary,
+  OrganizationMemberSummary,
   RegisterInput,
   ResetPasswordInput,
+  UpdateMemberRoleInput,
+  UpdateOrganizationInput,
 } from "@ai-agent-platform/types";
 import { webEnv } from "@/config/env";
 import { useAuthStore } from "@/store/auth-store";
@@ -76,6 +82,37 @@ export const authApi = {
     }
 
     useAuthStore.getState().clearSession();
+  },
+  async currentOrganization() {
+    const organization = await apiRequest<CurrentOrganization>("/organizations/current");
+    useAuthStore.getState().setCurrentOrganization(organization);
+    return organization;
+  },
+  updateCurrentOrganization(input: UpdateOrganizationInput) {
+    return apiRequest<CurrentOrganization>("/organizations/current", {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+  organizationMembers() {
+    return apiRequest<OrganizationMemberSummary[]>("/organizations/members");
+  },
+  inviteOrganizationMember(input: InviteMemberInput) {
+    return apiRequest<OrganizationInvitationSummary>("/organizations/members", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  updateOrganizationMemberRole(memberId: string, input: UpdateMemberRoleInput) {
+    return apiRequest<OrganizationMemberSummary>(`/organizations/members/${memberId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+  removeOrganizationMember(memberId: string) {
+    return apiRequest<{ success: true }>(`/organizations/members/${memberId}`, {
+      method: "DELETE",
+    });
   },
 };
 

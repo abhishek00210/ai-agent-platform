@@ -70,6 +70,7 @@ describe("AuthService", () => {
     expect(result.accessToken).toBe("signed-access-token");
     expect(result.refreshToken).toMatch(/^refresh-1\./);
     expect(result.user.organizationId).toBe("org-1");
+    expect(result.user.role).toBe("OWNER");
   });
 
   it("rejects duplicate registration emails", async () => {
@@ -222,7 +223,7 @@ function user(overrides: Record<string, unknown> = {}) {
 function userWithMembership(overrides: Record<string, unknown> = {}) {
   return {
     ...user(),
-    memberships: [{ organizationId: "org-1" }],
+    memberships: [{ organizationId: "org-1", role: "OWNER" }],
     ...overrides,
   };
 }
