@@ -9,6 +9,13 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const hydrated = useAuthStore((state) => state.hydrated);
   const accessToken = useAuthStore((state) => state.accessToken);
+  const setHydrated = useAuthStore((state) => state.setHydrated);
+
+  React.useEffect(() => {
+    if (!hydrated && useAuthStore.persist.hasHydrated()) {
+      setHydrated(true);
+    }
+  }, [hydrated, setHydrated]);
 
   React.useEffect(() => {
     if (hydrated && !accessToken) {
