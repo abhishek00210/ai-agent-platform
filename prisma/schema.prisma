@@ -95,6 +95,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   sentInvitations OrganizationInvitation[] @relation("OrganizationInvitationInviter")
   auditEvents AuditEvent[] @relation("AuditEventActor")
+  uploadedDocuments Document[] @relation("DocumentUploader")
 
   @@index([email])
   @@index([status])
@@ -241,20 +242,28 @@ model Document {
   name             String
   description      String?
   fileName         String?
+  originalFileName String?
   fileType         String?
+  fileExtension    String?
   fileSize         Int?
   storagePath      String?
+  storageProvider  String?
+  storageBucket    String?
   uploadStatus     UploadStatus     @default(PENDING)
   processingStatus ProcessingStatus @default(PENDING)
+  uploadedBy       String?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   deletedAt        DateTime?
 
   organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  uploader      User?         @relation("DocumentUploader", fields: [uploadedBy], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
   @@index([knowledgeBaseId])
+  @@index([createdAt])
+  @@index([uploadedBy])
   @@index([uploadStatus])
   @@index([processingStatus])
   @@index([deletedAt])

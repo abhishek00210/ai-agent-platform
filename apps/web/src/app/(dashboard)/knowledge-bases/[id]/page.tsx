@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DocumentSummary } from "@ai-agent-platform/types";
 import {
   ArrowLeft,
+  Download,
+  Eye,
   FileText,
   MoreHorizontal,
   Pencil,
@@ -23,13 +25,16 @@ import {
   cn,
 } from "@ai-agent-platform/ui";
 import { DocumentForm } from "@/components/knowledge-bases/document-form";
+import { PdfUploadDropzone } from "@/components/knowledge-bases/pdf-upload-dropzone";
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageLoader, SkeletonBlock } from "@/components/layout/page-loader";
 import {
   formatKnowledgeBaseStatus,
+  formatFileSize,
   formatProcessingStatus,
   formatUploadStatus,
+  formatUploader,
 } from "@/lib/knowledge-base-options";
 import { authApi } from "@/lib/auth-api";
 import { useKnowledgeBaseStore } from "@/store/knowledge-base-store";
@@ -190,18 +195,23 @@ export default function KnowledgeBaseDetailsPage() {
           <UploadCloud className="h-5 w-5 text-teal-700 dark:text-teal-300" aria-hidden="true" />
           <h2 className="mt-3 text-base font-semibold">Document ingestion foundation</h2>
           <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-            Day 8 stores document metadata only. File uploads, extraction, embeddings, and retrieval
-            will attach to these records in later phases.
+            PDFs are stored as private objects now. Extraction, embeddings, and retrieval will
+            attach to these records in later phases.
           </p>
         </div>
       </section>
+
+      <PdfUploadDropzone
+        knowledgeBaseId={knowledgeBase.id}
+        onUploaded={() => setNotice("PDF uploaded successfully.")}
+      />
 
       <section className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex flex-col gap-3 border-b border-zinc-200 p-6 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-base font-semibold">Documents</h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Metadata records attached to this knowledge base.
+              Uploaded PDFs and metadata records attached to this knowledge base.
             </p>
           </div>
           <Button onClick={() => setDocumentModal("create")}>
@@ -215,8 +225,10 @@ export default function KnowledgeBaseDetailsPage() {
               <tr>
                 <th className="px-6 py-3 font-medium">Document Name</th>
                 <th className="px-6 py-3 font-medium">Description</th>
+                <th className="px-6 py-3 font-medium">File Size</th>
                 <th className="px-6 py-3 font-medium">Upload Status</th>
                 <th className="px-6 py-3 font-medium">Processing Status</th>
+                <th className="px-6 py-3 font-medium">Uploaded By</th>
                 <th className="px-6 py-3 font-medium">Created Date</th>
                 <th className="px-6 py-3 font-medium">Actions</th>
               </tr>
@@ -240,12 +252,14 @@ export default function KnowledgeBaseDetailsPage() {
             <EmptyState
               icon={FileText}
               title="No documents added"
-              description="Create metadata records now; file upload and ingestion will connect here later."
+              description="Upload a PDF or create a metadata record for future ingestion."
               action={
-                <Button onClick={() => setDocumentModal("create")}>
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  Add Document
-                </Button>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button onClick={() => setDocumentModal("create")}>
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Add Metadata
+                  </Button>
+                </div>
               }
             />
           </div>
@@ -317,6 +331,11 @@ function DocumentRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  async function downloadDocument() {
+    const access = await authApi.documentDownloadAccess(document.id);
+    window.open(access.url, "_blank", "noopener,noreferrer");
+  }
+
   return (
     <tr>
       <td className="px-6 py-4">
@@ -324,6 +343,9 @@ function DocumentRow({
       </td>
       <td className="max-w-sm px-6 py-4 text-zinc-600 dark:text-zinc-300">
         <span className="line-clamp-2">{document.description ?? "No description"}</span>
+      </td>
+      <td className="px-6 py-4 text-zinc-600 dark:text-zinc-300">
+        {formatFileSize(document.fileSize)}
       </td>
       <td className="px-6 py-4">
         <StatusBadge
@@ -337,6 +359,9 @@ function DocumentRow({
           tone={document.processingStatus}
         />
       </td>
+      <td className="px-6 py-4 text-zinc-600 dark:text-zinc-300">
+        {formatUploader(document.uploadedBy)}
+      </td>
       <td className="px-6 py-4 text-zinc-500 dark:text-zinc-400">
         {new Date(document.createdAt).toLocaleDateString()}
       </td>
@@ -349,6 +374,19 @@ function DocumentRow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link href={`/documents/${document.id}`}>
+                <Eye className="h-4 w-4" aria-hidden="true" />
+                View Details
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={document.uploadStatus !== "UPLOADED"}
+              onClick={downloadDocument}
+            >
+              <Download className="h-4 w-4" aria-hidden="true" />
+              Download
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={onEdit}>
               <Pencil className="h-4 w-4" aria-hidden="true" />
               Edit
@@ -450,7 +488,7 @@ function ConfirmDialog({
 function DocumentTableSkeleton() {
   return Array.from({ length: 3 }).map((_, index) => (
     <tr key={index}>
-      {Array.from({ length: 6 }).map((__, cellIndex) => (
+      {Array.from({ length: 8 }).map((__, cellIndex) => (
         <td key={cellIndex} className="px-6 py-4">
           <SkeletonBlock className="h-4 w-full" />
         </td>

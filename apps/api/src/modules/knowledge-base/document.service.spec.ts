@@ -2,6 +2,7 @@ import { NotFoundException } from "@nestjs/common";
 import { DocumentService } from "./document.service";
 import { ProcessingStatusDto, UploadStatusDto } from "./dto/document.dto";
 import type { DocumentRepository } from "./repositories/document.repository";
+import type { StorageService } from "../storage/storage.service";
 import type { TenantContext } from "../tenant/tenant.service";
 
 const context: TenantContext = {
@@ -20,11 +21,16 @@ const document = {
   name: "Pricing FAQ",
   description: "Pricing answers",
   fileName: null,
+  originalFileName: null,
   fileType: null,
+  fileExtension: null,
   fileSize: null,
   storagePath: null,
+  storageProvider: null,
+  storageBucket: null,
   uploadStatus: "PENDING" as const,
   processingStatus: "PENDING" as const,
+  uploadedBy: null,
   createdAt: now,
   updatedAt: now,
   deletedAt: null,
@@ -32,6 +38,7 @@ const document = {
     id: "kb-1",
     name: "Reception Knowledge",
   },
+  uploader: null,
 };
 
 function createRepositoryMock(): jest.Mocked<DocumentRepository> {
@@ -40,10 +47,18 @@ function createRepositoryMock(): jest.Mocked<DocumentRepository> {
     findById: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    updateAndReturn: jest.fn(),
     softDelete: jest.fn(),
     knowledgeBaseExists: jest.fn(),
     createAuditEvent: jest.fn(),
   } as unknown as jest.Mocked<DocumentRepository>;
+}
+
+function createStorageMock(): jest.Mocked<StorageService> {
+  return {
+    delete: jest.fn(),
+    createDownloadUrl: jest.fn(),
+  } as unknown as jest.Mocked<StorageService>;
 }
 
 describe("DocumentService", () => {
@@ -52,7 +67,7 @@ describe("DocumentService", () => {
     repository.knowledgeBaseExists.mockResolvedValue({ id: "kb-1" });
     repository.create.mockResolvedValue(document);
     repository.createAuditEvent.mockResolvedValue({} as never);
-    const service = new DocumentService(repository);
+    const service = new DocumentService(repository, createStorageMock());
 
     const result = await service.create(context, {
       knowledgeBaseId: "kb-1",
@@ -84,7 +99,7 @@ describe("DocumentService", () => {
   it("rejects document creation for a knowledge base outside tenant scope", async () => {
     const repository = createRepositoryMock();
     repository.knowledgeBaseExists.mockResolvedValue(null);
-    const service = new DocumentService(repository);
+    const service = new DocumentService(repository, createStorageMock());
 
     await expect(
       service.create(context, {
@@ -98,7 +113,7 @@ describe("DocumentService", () => {
     const repository = createRepositoryMock();
     repository.knowledgeBaseExists.mockResolvedValue({ id: "kb-1" });
     repository.list.mockResolvedValue({ total: 1, data: [document] });
-    const service = new DocumentService(repository);
+    const service = new DocumentService(repository, createStorageMock());
 
     const result = await service.list(context, {
       page: 2,
@@ -124,7 +139,7 @@ describe("DocumentService", () => {
   it("throws not found for cross-tenant document access", async () => {
     const repository = createRepositoryMock();
     repository.findById.mockResolvedValue(null);
-    const service = new DocumentService(repository);
+    const service = new DocumentService(repository, createStorageMock());
 
     await expect(service.getById(context, "other-doc")).rejects.toBeInstanceOf(NotFoundException);
     expect(repository.findById).toHaveBeenCalledWith("org-1", "other-doc");
@@ -140,7 +155,7 @@ describe("DocumentService", () => {
     });
     repository.update.mockResolvedValue({ count: 1 });
     repository.createAuditEvent.mockResolvedValue({} as never);
-    const service = new DocumentService(repository);
+    const service = new DocumentService(repository, createStorageMock());
 
     const result = await service.update(context, "doc-1", {
       name: " Updated FAQ ",
@@ -164,13 +179,56 @@ describe("DocumentService", () => {
     repository.findById.mockResolvedValue(document);
     repository.softDelete.mockResolvedValue({ count: 1 });
     repository.createAuditEvent.mockResolvedValue({} as never);
-    const service = new DocumentService(repository);
+    const storage = createStorageMock();
+    const service = new DocumentService(repository, storage);
 
     await expect(service.delete(context, "doc-1")).resolves.toEqual({ success: true });
 
     expect(repository.softDelete).toHaveBeenCalledWith("org-1", "doc-1");
+    expect(storage.delete).not.toHaveBeenCalled();
     expect(repository.createAuditEvent).toHaveBeenCalledWith(
       expect.objectContaining({ action: "document.deleted", entityId: "doc-1" }),
     );
+  });
+
+  it("creates secure download access for uploaded PDFs and audits downloads", async () => {
+    const repository = createRepositoryMock();
+    repository.findById.mockResolvedValue({
+      ...document,
+      fileName: "doc-1.pdf",
+      originalFileName: "Pricing FAQ.pdf",
+      fileType: "application/pdf",
+      fileExtension: "pdf",
+      fileSize: 1024,
+      storagePath: "organizations/org-1/knowledge-bases/kb-1/documents/doc-1.pdf",
+      storageProvider: "s3-compatible",
+      storageBucket: "private-bucket",
+      uploadStatus: "UPLOADED",
+      uploadedBy: "user-1",
+      uploader: {
+        id: "user-1",
+        email: "owner@example.com",
+        firstName: "Owner",
+        lastName: "User",
+      },
+    });
+    repository.createAuditEvent.mockResolvedValue({} as never);
+    const storage = createStorageMock();
+    storage.createDownloadUrl.mockResolvedValue({
+      url: "https://storage.example.com/signed",
+      expiresInSeconds: 300,
+    });
+    const service = new DocumentService(repository, storage);
+
+    const result = await service.createDownloadAccess(context, "doc-1");
+
+    expect(storage.createDownloadUrl).toHaveBeenCalledWith(
+      "organizations/org-1/knowledge-bases/kb-1/documents/doc-1.pdf",
+      "Pricing FAQ.pdf",
+    );
+    expect(repository.createAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "pdf.downloaded", entityId: "doc-1" }),
+    );
+    expect(result.url).toBe("https://storage.example.com/signed");
   });
 });

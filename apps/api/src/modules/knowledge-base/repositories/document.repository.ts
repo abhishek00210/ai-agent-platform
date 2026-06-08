@@ -18,11 +18,16 @@ export interface DocumentWriteInput {
   name: string;
   description?: string | null;
   fileName?: string | null;
+  originalFileName?: string | null;
   fileType?: string | null;
+  fileExtension?: string | null;
   fileSize?: number | null;
   storagePath?: string | null;
+  storageProvider?: string | null;
+  storageBucket?: string | null;
   uploadStatus?: UploadStatus;
   processingStatus?: ProcessingStatus;
+  uploadedBy?: string | null;
 }
 
 @Injectable()
@@ -63,6 +68,23 @@ export class DocumentRepository {
       data: input,
       include: this.defaultInclude(),
     });
+  }
+
+  async updateAndReturn(
+    organizationId: string,
+    documentId: string,
+    input: Partial<Omit<DocumentWriteInput, "organizationId" | "knowledgeBaseId">>,
+  ) {
+    await this.prisma.document.updateMany({
+      where: {
+        id: documentId,
+        organizationId,
+        deletedAt: null,
+      },
+      data: input,
+    });
+
+    return this.findById(organizationId, documentId);
   }
 
   update(
@@ -146,6 +168,14 @@ export class DocumentRepository {
         select: {
           id: true,
           name: true,
+        },
+      },
+      uploader: {
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
         },
       },
     } satisfies Prisma.DocumentInclude;

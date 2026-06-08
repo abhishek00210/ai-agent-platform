@@ -167,11 +167,19 @@ export interface DocumentSummary {
   name: string;
   description: string | null;
   fileName: string | null;
+  originalFileName: string | null;
   fileType: string | null;
+  fileExtension: string | null;
   fileSize: number | null;
-  storagePath: string | null;
+  storageProvider: string | null;
   uploadStatus: UploadStatus;
   processingStatus: ProcessingStatus;
+  uploadedBy: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -205,6 +213,17 @@ export interface UpdateDocumentInput {
   description?: string;
   uploadStatus?: UploadStatus;
   processingStatus?: ProcessingStatus;
+}
+
+export interface UploadPdfInput {
+  knowledgeBaseId: string;
+  description?: string;
+  file: File;
+}
+
+export interface DocumentDownloadAccess {
+  url: string;
+  expiresInSeconds: number;
 }
 
 export interface ApiEnvelope<T> {

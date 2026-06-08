@@ -1,26 +1,44 @@
 import { Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import type { ObjectStorageProvider } from "./storage.provider";
+import type {
+  StorageDownloadAccess,
+  StorageUploadInput,
+  StorageUploadResult,
+} from "./storage.provider";
+import { S3StorageProvider } from "./s3-storage.provider";
 
 @Injectable()
-export class StorageService implements ObjectStorageProvider {
-  providerName = "s3-compatible" as const;
+export class StorageService {
+  constructor(private readonly provider: S3StorageProvider) {}
 
-  constructor(private readonly config: ConfigService) {}
+  get providerName() {
+    return this.provider.providerName;
+  }
 
   isConfigured(): boolean {
-    return Boolean(
-      this.config.get<string>("storage.endpoint") &&
-      this.config.get<string>("storage.bucket") &&
-      this.config.get<string>("storage.accessKeyId"),
-    );
+    return this.provider.isConfigured();
+  }
+
+  bucketName(): string {
+    return this.provider.bucketName();
+  }
+
+  upload(input: StorageUploadInput): Promise<StorageUploadResult> {
+    return this.provider.upload(input);
+  }
+
+  delete(key: string): Promise<void> {
+    return this.provider.delete(key);
+  }
+
+  createDownloadUrl(key: string, fileName: string): Promise<StorageDownloadAccess> {
+    return this.provider.createDownloadUrl(key, fileName);
   }
 
   capabilities() {
     return {
       provider: this.providerName,
       configured: this.isConfigured(),
-      mode: "integration-structure-only",
+      mode: "s3-compatible-ready",
     };
   }
 }

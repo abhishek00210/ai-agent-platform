@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Prisma, ProcessingStatus, UploadStatus } from "../../../generated/prisma";
+import { StorageService } from "../storage/storage.service";
 import type { TenantContext } from "../tenant/tenant.service";
 import type {
   CreateDocumentDto,
@@ -10,7 +11,10 @@ import { DocumentRepository } from "./repositories/document.repository";
 
 @Injectable()
 export class DocumentService {
-  constructor(private readonly documents: DocumentRepository) {}
+  constructor(
+    private readonly documents: DocumentRepository,
+    private readonly storage: StorageService,
+  ) {}
 
   async create(context: TenantContext, input: CreateDocumentDto) {
     await this.assertKnowledgeBaseBelongsToTenant(context.organizationId, input.knowledgeBaseId);
@@ -97,13 +101,44 @@ export class DocumentService {
 
   async delete(context: TenantContext, documentId: string) {
     const document = await this.getScopedDocument(context.organizationId, documentId);
+
+    if (document.storagePath) {
+      await this.storage.delete(document.storagePath);
+    }
+
     await this.documents.softDelete(context.organizationId, documentId);
-    await this.audit(context, "document.deleted", document.id, {
+    await this.audit(
+      context,
+      document.storagePath ? "pdf.deleted" : "document.deleted",
+      document.id,
+      {
+        name: document.name,
+        knowledgeBaseId: document.knowledgeBaseId,
+        fileName: document.originalFileName,
+      },
+    );
+
+    return { success: true };
+  }
+
+  async createDownloadAccess(context: TenantContext, documentId: string) {
+    const document = await this.getScopedDocument(context.organizationId, documentId);
+
+    if (!document.storagePath || document.uploadStatus !== "UPLOADED") {
+      throw new BadRequestException("Document file is not available for download.");
+    }
+
+    const access = await this.storage.createDownloadUrl(
+      document.storagePath,
+      document.originalFileName ?? document.fileName ?? `${document.name}.pdf`,
+    );
+
+    await this.audit(context, "pdf.downloaded", document.id, {
       name: document.name,
       knowledgeBaseId: document.knowledgeBaseId,
     });
 
-    return { success: true };
+    return access;
   }
 
   private async getScopedDocument(organizationId: string, documentId: string) {
@@ -134,15 +169,21 @@ export class DocumentService {
     name: string;
     description: string | null;
     fileName: string | null;
+    originalFileName: string | null;
     fileType: string | null;
+    fileExtension: string | null;
     fileSize: number | null;
     storagePath: string | null;
+    storageProvider: string | null;
+    storageBucket: string | null;
     uploadStatus: UploadStatus;
     processingStatus: ProcessingStatus;
+    uploadedBy: string | null;
     createdAt: Date;
     updatedAt: Date;
     deletedAt: Date | null;
     knowledgeBase?: { id: string; name: string };
+    uploader?: { id: string; email: string; firstName: string; lastName: string } | null;
   }) {
     return {
       id: document.id,
@@ -152,11 +193,14 @@ export class DocumentService {
       name: document.name,
       description: document.description,
       fileName: document.fileName,
+      originalFileName: document.originalFileName,
       fileType: document.fileType,
+      fileExtension: document.fileExtension,
       fileSize: document.fileSize,
-      storagePath: document.storagePath,
+      storageProvider: document.storageProvider,
       uploadStatus: document.uploadStatus,
       processingStatus: document.processingStatus,
+      uploadedBy: document.uploader ?? null,
       createdAt: document.createdAt,
       updatedAt: document.updatedAt,
     };

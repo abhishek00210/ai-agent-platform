@@ -11,6 +11,8 @@ import type {
 } from "@ai-agent-platform/types";
 import { create } from "zustand";
 
+export type UploadState = "idle" | "ready" | "uploading" | "success" | "error";
+
 interface KnowledgeBaseState {
   knowledgeBases: KnowledgeBaseListResponse | null;
   selectedKnowledgeBase: KnowledgeBaseDetails | null;
@@ -25,6 +27,9 @@ interface KnowledgeBaseState {
   documentSearch: string;
   uploadStatus: UploadStatus | "ALL";
   processingStatus: ProcessingStatus | "ALL";
+  uploadProgress: number;
+  uploadState: UploadState;
+  uploadError: string | null;
   setKnowledgeBases: (knowledgeBases: KnowledgeBaseListResponse) => void;
   setSelectedKnowledgeBase: (knowledgeBase: KnowledgeBaseDetails | null) => void;
   setDocuments: (documents: DocumentListResponse) => void;
@@ -36,6 +41,10 @@ interface KnowledgeBaseState {
   setDocumentSearch: (search: string) => void;
   setUploadStatus: (status: UploadStatus | "ALL") => void;
   setProcessingStatus: (status: ProcessingStatus | "ALL") => void;
+  setUploadProgress: (progress: number) => void;
+  setUploadState: (state: UploadState) => void;
+  setUploadError: (error: string | null) => void;
+  resetUpload: () => void;
 }
 
 export const useKnowledgeBaseStore = create<KnowledgeBaseState>((set) => ({
@@ -52,6 +61,9 @@ export const useKnowledgeBaseStore = create<KnowledgeBaseState>((set) => ({
   documentSearch: "",
   uploadStatus: "ALL",
   processingStatus: "ALL",
+  uploadProgress: 0,
+  uploadState: "idle",
+  uploadError: null,
   setKnowledgeBases: (knowledgeBases) => set({ knowledgeBases }),
   setSelectedKnowledgeBase: (selectedKnowledgeBase) => set({ selectedKnowledgeBase }),
   setDocuments: (documents) => set({ documents }),
@@ -63,4 +75,8 @@ export const useKnowledgeBaseStore = create<KnowledgeBaseState>((set) => ({
   setDocumentSearch: (documentSearch) => set({ documentSearch, documentPage: 1 }),
   setUploadStatus: (uploadStatus) => set({ uploadStatus, documentPage: 1 }),
   setProcessingStatus: (processingStatus) => set({ processingStatus, documentPage: 1 }),
+  setUploadProgress: (uploadProgress) => set({ uploadProgress }),
+  setUploadState: (uploadState) => set({ uploadState }),
+  setUploadError: (uploadError) => set({ uploadError }),
+  resetUpload: () => set({ uploadProgress: 0, uploadState: "idle", uploadError: null }),
 }));

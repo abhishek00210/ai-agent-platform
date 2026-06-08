@@ -39,6 +39,16 @@ export class CreateDocumentDto {
   description?: string;
 }
 
+export class UploadPdfDto {
+  @IsUUID()
+  knowledgeBaseId!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+}
+
 export class UpdateDocumentDto {
   @IsOptional()
   @IsString()

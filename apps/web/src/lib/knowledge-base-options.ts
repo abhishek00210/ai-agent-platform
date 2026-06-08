@@ -30,3 +30,31 @@ export function formatUploadStatus(status: UploadStatus): string {
 export function formatProcessingStatus(status: ProcessingStatus): string {
   return processingStatuses.find((item) => item.value === status)?.label ?? status;
 }
+
+export function formatFileSize(bytes?: number | null): string {
+  if (!bytes || bytes <= 0) {
+    return "No file";
+  }
+
+  const units = ["B", "KB", "MB", "GB"];
+  let size = bytes;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+export function formatUploader(
+  uploadedBy?: { firstName: string; lastName: string; email: string } | null,
+): string {
+  if (!uploadedBy) {
+    return "Not uploaded";
+  }
+
+  const fullName = `${uploadedBy.firstName} ${uploadedBy.lastName}`.trim();
+  return fullName || uploadedBy.email;
+}

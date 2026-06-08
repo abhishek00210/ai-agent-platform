@@ -2,7 +2,16 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DocumentSummary, ProcessingStatus, UploadStatus } from "@ai-agent-platform/types";
-import { FileText, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import {
+  Download,
+  Eye,
+  FileText,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import type React from "react";
 import { useState } from "react";
@@ -19,8 +28,10 @@ import { EmptyState } from "@/components/layout/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { SkeletonBlock } from "@/components/layout/page-loader";
 import {
+  formatFileSize,
   formatProcessingStatus,
   formatUploadStatus,
+  formatUploader,
   processingStatuses,
   uploadStatuses,
 } from "@/lib/knowledge-base-options";
@@ -184,10 +195,12 @@ export default function DocumentsPage() {
             <thead className="border-b border-zinc-200 text-xs uppercase text-zinc-500 dark:border-zinc-800">
               <tr>
                 <th className="px-6 py-3 font-medium">Document Name</th>
+                <th className="px-6 py-3 font-medium">File Size</th>
                 <th className="px-6 py-3 font-medium">Knowledge Base</th>
                 <th className="px-6 py-3 font-medium">Description</th>
                 <th className="px-6 py-3 font-medium">Upload Status</th>
                 <th className="px-6 py-3 font-medium">Processing Status</th>
+                <th className="px-6 py-3 font-medium">Uploaded By</th>
                 <th className="px-6 py-3 font-medium">Created Date</th>
                 <th className="px-6 py-3 font-medium">Actions</th>
               </tr>
@@ -299,10 +312,18 @@ function DocumentRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  async function downloadDocument() {
+    const access = await authApi.documentDownloadAccess(document.id);
+    window.open(access.url, "_blank", "noopener,noreferrer");
+  }
+
   return (
     <tr>
       <td className="px-6 py-4">
         <div className="font-medium">{document.name}</div>
+      </td>
+      <td className="px-6 py-4 text-zinc-600 dark:text-zinc-300">
+        {formatFileSize(document.fileSize)}
       </td>
       <td className="px-6 py-4 text-zinc-600 dark:text-zinc-300">
         <Link
@@ -327,6 +348,9 @@ function DocumentRow({
           tone={document.processingStatus}
         />
       </td>
+      <td className="px-6 py-4 text-zinc-600 dark:text-zinc-300">
+        {formatUploader(document.uploadedBy)}
+      </td>
       <td className="px-6 py-4 text-zinc-500 dark:text-zinc-400">
         {new Date(document.createdAt).toLocaleDateString()}
       </td>
@@ -339,6 +363,19 @@ function DocumentRow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link href={`/documents/${document.id}`}>
+                <Eye className="h-4 w-4" aria-hidden="true" />
+                View Details
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={document.uploadStatus !== "UPLOADED"}
+              onClick={downloadDocument}
+            >
+              <Download className="h-4 w-4" aria-hidden="true" />
+              Download
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={onEdit}>
               <Pencil className="h-4 w-4" aria-hidden="true" />
               Edit
@@ -439,7 +476,7 @@ function ConfirmDeleteDocumentDialog({
 function DocumentTableSkeleton() {
   return Array.from({ length: 4 }).map((_, index) => (
     <tr key={index}>
-      {Array.from({ length: 7 }).map((__, cellIndex) => (
+      {Array.from({ length: 9 }).map((__, cellIndex) => (
         <td key={cellIndex} className="px-6 py-4">
           <SkeletonBlock className="h-4 w-full" />
         </td>

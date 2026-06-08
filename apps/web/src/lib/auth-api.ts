@@ -8,6 +8,7 @@ import type {
   CreateKnowledgeBaseInput,
   CurrentOrganization,
   DocumentDetails,
+  DocumentDownloadAccess,
   DocumentListQuery,
   DocumentListResponse,
   ForgotPasswordInput,
@@ -218,6 +219,17 @@ export const authApi = {
       method: "DELETE",
     });
   },
+  documentDownloadAccess(documentId: string) {
+    return apiRequest<DocumentDownloadAccess>(`/documents/${documentId}/download`);
+  },
+  uploadPdf(input: {
+    knowledgeBaseId: string;
+    file: File;
+    description?: string;
+    onProgress?: (progress: number) => void;
+  }) {
+    return uploadPdfWithProgress(input);
+  },
 };
 
 async function fetchWithAuth(path: string, options: ApiRequestOptions): Promise<Response> {
@@ -246,7 +258,10 @@ async function fetchWithAuth(path: string, options: ApiRequestOptions): Promise<
 
 function rawFetch(path: string, options: ApiRequestOptions): Promise<Response> {
   const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
+
+  if (!(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
 
   if (!options.skipAuth) {
     const accessToken = useAuthStore.getState().accessToken;
@@ -260,6 +275,70 @@ function rawFetch(path: string, options: ApiRequestOptions): Promise<Response> {
     ...options,
     headers,
   });
+}
+
+function uploadPdfWithProgress(input: {
+  knowledgeBaseId: string;
+  file: File;
+  description?: string;
+  onProgress?: (progress: number) => void;
+}): Promise<DocumentDetails> {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.set("knowledgeBaseId", input.knowledgeBaseId);
+    formData.set("file", input.file);
+
+    if (input.description) {
+      formData.set("description", input.description);
+    }
+
+    const request = new XMLHttpRequest();
+    request.open("POST", `${apiBaseUrl}/documents/upload`);
+
+    const accessToken = useAuthStore.getState().accessToken;
+    if (accessToken) {
+      request.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+    }
+
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        input.onProgress?.(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+
+    request.onload = () => {
+      const body = parseJson(request.responseText);
+
+      if (request.status < 200 || request.status >= 300) {
+        reject(new Error(readUploadError(body, request.status)));
+        return;
+      }
+
+      input.onProgress?.(100);
+      resolve(body as DocumentDetails);
+    };
+
+    request.onerror = () => reject(new Error("Upload failed. Please try again."));
+    request.onabort = () => reject(new Error("Upload cancelled."));
+    request.send(formData);
+  });
+}
+
+function parseJson(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function readUploadError(body: unknown, status: number): string {
+  if (typeof body === "object" && body && "message" in body) {
+    const message = (body as { message?: unknown }).message;
+    return typeof message === "string" ? message : `Upload failed with ${status}`;
+  }
+
+  return `Upload failed with ${status}`;
 }
 
 async function readErrorMessage(response: Response): Promise<string> {

@@ -7,6 +7,7 @@ import type {
   CreateDocumentInput,
   CreateKnowledgeBaseInput,
   DocumentDetails,
+  DocumentDownloadAccess,
   DocumentListQuery,
   DocumentListResponse,
   ForgotPasswordInput,
@@ -240,10 +241,35 @@ export class ApiClient {
     });
   }
 
+  async documentDownloadAccess(documentId: string): Promise<DocumentDownloadAccess> {
+    return this.request<DocumentDownloadAccess>(`/documents/${documentId}/download`);
+  }
+
+  async uploadPdf(input: {
+    knowledgeBaseId: string;
+    file: File;
+    description?: string;
+  }): Promise<DocumentDetails> {
+    const formData = new FormData();
+    formData.set("knowledgeBaseId", input.knowledgeBaseId);
+    formData.set("file", input.file);
+
+    if (input.description) {
+      formData.set("description", input.description);
+    }
+
+    return this.request<DocumentDetails>("/documents/upload", {
+      method: "POST",
+      body: formData,
+    });
+  }
+
   async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const token = this.getAccessToken ? await this.getAccessToken() : null;
     const headers = new Headers(init.headers);
-    headers.set("Content-Type", "application/json");
+    if (!(init.body instanceof FormData)) {
+      headers.set("Content-Type", "application/json");
+    }
 
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
