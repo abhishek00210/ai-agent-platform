@@ -3,6 +3,9 @@ export type OrganizationStatus = "ACTIVE" | "SUSPENDED" | "ARCHIVED";
 export type UserStatus = "ACTIVE" | "INVITED" | "SUSPENDED";
 export type MemberRole = "OWNER" | "ADMIN" | "MEMBER";
 export type AgentStatus = "ACTIVE" | "INACTIVE" | "DRAFT";
+export type KnowledgeBaseStatus = "ACTIVE" | "INACTIVE" | "DRAFT";
+export type UploadStatus = "PENDING" | "UPLOADED" | "FAILED";
+export type ProcessingStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
 
 export interface OrganizationSummary {
   id: string;
@@ -106,6 +109,102 @@ export type UpdateAgentInput = Partial<CreateAgentInput>;
 export interface AgentOption {
   label: string;
   value: string;
+}
+
+export interface KnowledgeBaseSummary {
+  id: string;
+  organizationId: string;
+  agentId: string | null;
+  name: string;
+  description: string | null;
+  status: KnowledgeBaseStatus;
+  assignedAgent: {
+    id: string;
+    name: string;
+  } | null;
+  documentsCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type KnowledgeBaseDetails = KnowledgeBaseSummary;
+
+export interface KnowledgeBaseListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  data: KnowledgeBaseSummary[];
+}
+
+export interface KnowledgeBaseListQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: KnowledgeBaseStatus;
+}
+
+export interface CreateKnowledgeBaseInput {
+  name: string;
+  description?: string;
+  agentId?: string | null;
+  status: KnowledgeBaseStatus;
+}
+
+export type UpdateKnowledgeBaseInput = Partial<CreateKnowledgeBaseInput>;
+
+export interface AssignAgentInput {
+  agentId?: string | null;
+}
+
+export interface DocumentSummary {
+  id: string;
+  organizationId: string;
+  knowledgeBaseId: string;
+  knowledgeBase: {
+    id: string;
+    name: string;
+  };
+  name: string;
+  description: string | null;
+  fileName: string | null;
+  fileType: string | null;
+  fileSize: number | null;
+  storagePath: string | null;
+  uploadStatus: UploadStatus;
+  processingStatus: ProcessingStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type DocumentDetails = DocumentSummary;
+
+export interface DocumentListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  data: DocumentSummary[];
+}
+
+export interface DocumentListQuery {
+  page?: number;
+  limit?: number;
+  knowledgeBaseId?: string;
+  search?: string;
+  uploadStatus?: UploadStatus;
+  processingStatus?: ProcessingStatus;
+}
+
+export interface CreateDocumentInput {
+  knowledgeBaseId: string;
+  name: string;
+  description?: string;
+}
+
+export interface UpdateDocumentInput {
+  name?: string;
+  description?: string;
+  uploadStatus?: UploadStatus;
+  processingStatus?: ProcessingStatus;
 }
 
 export interface ApiEnvelope<T> {

@@ -4,16 +4,26 @@ import type {
   AgentListQuery,
   AgentListResponse,
   CreateAgentInput,
+  CreateDocumentInput,
+  CreateKnowledgeBaseInput,
+  DocumentDetails,
+  DocumentListQuery,
+  DocumentListResponse,
   ForgotPasswordInput,
   HealthResponse,
   CurrentOrganization,
   InviteMemberInput,
+  KnowledgeBaseDetails,
+  KnowledgeBaseListQuery,
+  KnowledgeBaseListResponse,
   LoginInput,
   OrganizationInvitationSummary,
   OrganizationMemberSummary,
   RegisterInput,
   ResetPasswordInput,
   UpdateAgentInput,
+  UpdateDocumentInput,
+  UpdateKnowledgeBaseInput,
   UpdateMemberRoleInput,
   UpdateOrganizationInput,
 } from "@ai-agent-platform/types";
@@ -159,6 +169,77 @@ export class ApiClient {
     });
   }
 
+  async knowledgeBases(query: KnowledgeBaseListQuery = {}): Promise<KnowledgeBaseListResponse> {
+    const suffix = toQuerySuffix(query);
+    return this.request<KnowledgeBaseListResponse>(`/knowledge-bases${suffix}`);
+  }
+
+  async createKnowledgeBase(input: CreateKnowledgeBaseInput): Promise<KnowledgeBaseDetails> {
+    return this.request<KnowledgeBaseDetails>("/knowledge-bases", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async knowledgeBase(knowledgeBaseId: string): Promise<KnowledgeBaseDetails> {
+    return this.request<KnowledgeBaseDetails>(`/knowledge-bases/${knowledgeBaseId}`);
+  }
+
+  async updateKnowledgeBase(
+    knowledgeBaseId: string,
+    input: UpdateKnowledgeBaseInput,
+  ): Promise<KnowledgeBaseDetails> {
+    return this.request<KnowledgeBaseDetails>(`/knowledge-bases/${knowledgeBaseId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async assignKnowledgeBaseAgent(
+    knowledgeBaseId: string,
+    agentId?: string | null,
+  ): Promise<KnowledgeBaseDetails> {
+    return this.request<KnowledgeBaseDetails>(`/knowledge-bases/${knowledgeBaseId}/assign-agent`, {
+      method: "PATCH",
+      body: JSON.stringify({ agentId }),
+    });
+  }
+
+  async deleteKnowledgeBase(knowledgeBaseId: string): Promise<{ success: true }> {
+    return this.request<{ success: true }>(`/knowledge-bases/${knowledgeBaseId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async documents(query: DocumentListQuery = {}): Promise<DocumentListResponse> {
+    const suffix = toQuerySuffix(query);
+    return this.request<DocumentListResponse>(`/documents${suffix}`);
+  }
+
+  async createDocument(input: CreateDocumentInput): Promise<DocumentDetails> {
+    return this.request<DocumentDetails>("/documents", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async document(documentId: string): Promise<DocumentDetails> {
+    return this.request<DocumentDetails>(`/documents/${documentId}`);
+  }
+
+  async updateDocument(documentId: string, input: UpdateDocumentInput): Promise<DocumentDetails> {
+    return this.request<DocumentDetails>(`/documents/${documentId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async deleteDocument(documentId: string): Promise<{ success: true }> {
+    return this.request<{ success: true }>(`/documents/${documentId}`, {
+      method: "DELETE",
+    });
+  }
+
   async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const token = this.getAccessToken ? await this.getAccessToken() : null;
     const headers = new Headers(init.headers);
@@ -184,4 +265,16 @@ export class ApiClient {
 
     return response.json() as Promise<T>;
   }
+}
+
+function toQuerySuffix(query: object): string {
+  const search = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== "") {
+      search.set(key, String(value));
+    }
+  }
+
+  return search.toString() ? `?${search.toString()}` : "";
 }

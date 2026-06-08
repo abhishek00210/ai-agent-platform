@@ -4,15 +4,25 @@ import type {
   AgentListQuery,
   AgentListResponse,
   CreateAgentInput,
+  CreateDocumentInput,
+  CreateKnowledgeBaseInput,
   CurrentOrganization,
+  DocumentDetails,
+  DocumentListQuery,
+  DocumentListResponse,
   ForgotPasswordInput,
   InviteMemberInput,
+  KnowledgeBaseDetails,
+  KnowledgeBaseListQuery,
+  KnowledgeBaseListResponse,
   LoginInput,
   OrganizationInvitationSummary,
   OrganizationMemberSummary,
   RegisterInput,
   ResetPasswordInput,
   UpdateAgentInput,
+  UpdateDocumentInput,
+  UpdateKnowledgeBaseInput,
   UpdateMemberRoleInput,
   UpdateOrganizationInput,
 } from "@ai-agent-platform/types";
@@ -156,6 +166,58 @@ export const authApi = {
       method: "POST",
     });
   },
+  knowledgeBases(query: KnowledgeBaseListQuery = {}) {
+    return apiRequest<KnowledgeBaseListResponse>(`/knowledge-bases${toQuerySuffix(query)}`);
+  },
+  createKnowledgeBase(input: CreateKnowledgeBaseInput) {
+    return apiRequest<KnowledgeBaseDetails>("/knowledge-bases", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  knowledgeBase(knowledgeBaseId: string) {
+    return apiRequest<KnowledgeBaseDetails>(`/knowledge-bases/${knowledgeBaseId}`);
+  },
+  updateKnowledgeBase(knowledgeBaseId: string, input: UpdateKnowledgeBaseInput) {
+    return apiRequest<KnowledgeBaseDetails>(`/knowledge-bases/${knowledgeBaseId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+  assignKnowledgeBaseAgent(knowledgeBaseId: string, agentId?: string | null) {
+    return apiRequest<KnowledgeBaseDetails>(`/knowledge-bases/${knowledgeBaseId}/assign-agent`, {
+      method: "PATCH",
+      body: JSON.stringify({ agentId }),
+    });
+  },
+  deleteKnowledgeBase(knowledgeBaseId: string) {
+    return apiRequest<{ success: true }>(`/knowledge-bases/${knowledgeBaseId}`, {
+      method: "DELETE",
+    });
+  },
+  documents(query: DocumentListQuery = {}) {
+    return apiRequest<DocumentListResponse>(`/documents${toQuerySuffix(query)}`);
+  },
+  createDocument(input: CreateDocumentInput) {
+    return apiRequest<DocumentDetails>("/documents", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  document(documentId: string) {
+    return apiRequest<DocumentDetails>(`/documents/${documentId}`);
+  },
+  updateDocument(documentId: string, input: UpdateDocumentInput) {
+    return apiRequest<DocumentDetails>(`/documents/${documentId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+  deleteDocument(documentId: string) {
+    return apiRequest<{ success: true }>(`/documents/${documentId}`, {
+      method: "DELETE",
+    });
+  },
 };
 
 async function fetchWithAuth(path: string, options: ApiRequestOptions): Promise<Response> {
@@ -205,4 +267,16 @@ async function readErrorMessage(response: Response): Promise<string> {
   return typeof body?.message === "string"
     ? body.message
     : `Request failed with ${response.status}`;
+}
+
+function toQuerySuffix(query: object): string {
+  const search = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== "") {
+      search.set(key, String(value));
+    }
+  }
+
+  return search.toString() ? `?${search.toString()}` : "";
 }

@@ -38,6 +38,25 @@ enum AgentStatus {
   DRAFT
 }
 
+enum KnowledgeBaseStatus {
+  ACTIVE
+  INACTIVE
+  DRAFT
+}
+
+enum UploadStatus {
+  PENDING
+  UPLOADED
+  FAILED
+}
+
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model Organization {
   id        String             @id @default(uuid())
   name      String
@@ -50,6 +69,8 @@ model Organization {
 
   members OrganizationMember[]
   agents  Agent[]
+  knowledgeBases KnowledgeBase[]
+  documents Document[]
   invitations OrganizationInvitation[]
   auditEvents AuditEvent[]
 
@@ -183,9 +204,59 @@ model Agent {
   deletedAt      DateTime?
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBases KnowledgeBase[]
 
   @@index([organizationId])
   @@index([status])
   @@index([deletedAt])
   @@map("agents")
+}
+
+model KnowledgeBase {
+  id             String              @id @default(uuid())
+  organizationId String
+  agentId        String?
+  name           String
+  description    String?
+  status         KnowledgeBaseStatus @default(DRAFT)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  deletedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent        Agent?       @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  documents    Document[]
+
+  @@index([organizationId])
+  @@index([agentId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("knowledge_bases")
+}
+
+model Document {
+  id               String           @id @default(uuid())
+  organizationId   String
+  knowledgeBaseId  String
+  name             String
+  description      String?
+  fileName         String?
+  fileType         String?
+  fileSize         Int?
+  storagePath      String?
+  uploadStatus     UploadStatus     @default(PENDING)
+  processingStatus ProcessingStatus @default(PENDING)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  deletedAt        DateTime?
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([knowledgeBaseId])
+  @@index([uploadStatus])
+  @@index([processingStatus])
+  @@index([deletedAt])
+  @@map("documents")
 }

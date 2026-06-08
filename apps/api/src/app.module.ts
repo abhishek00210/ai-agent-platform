@@ -6,6 +6,7 @@ import { AgentModule } from "./modules/agent/agent.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { BillingModule } from "./modules/billing/billing.module";
 import { HealthModule } from "./modules/health/health.module";
+import { KnowledgeBaseModule } from "./modules/knowledge-base/knowledge-base.module";
 import { MailModule } from "./modules/mail/mail.module";
 import { OrganizationModule } from "./modules/organization/organization.module";
 import { StorageModule } from "./modules/storage/storage.module";
@@ -46,6 +47,7 @@ import { SecurityModule } from "./security/security.module";
     UserModule,
     OrganizationModule,
     AgentModule,
+    KnowledgeBaseModule,
     VoiceModule,
     TwilioModule,
     MailModule,
