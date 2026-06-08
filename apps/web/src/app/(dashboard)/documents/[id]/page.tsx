@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@ai-agent-platform/ui";
+import { EmbeddingStatusCard } from "@/components/knowledge-bases/embedding-status-card";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageLoader } from "@/components/layout/page-loader";
 import { authApi } from "@/lib/auth-api";
@@ -15,6 +16,7 @@ import {
   formatUploadStatus,
   formatUploader,
 } from "@/lib/knowledge-base-options";
+import { useEmbeddingStore } from "@/store/embedding-store";
 import { useKnowledgeBaseStore } from "@/store/knowledge-base-store";
 
 export default function DocumentDetailsPage() {
@@ -23,6 +25,7 @@ export default function DocumentDetailsPage() {
   const queryClient = useQueryClient();
   const documentId = params.id;
   const setSelectedDocument = useKnowledgeBaseStore((state) => state.setSelectedDocument);
+  const setSourceStatus = useEmbeddingStore((state) => state.setSourceStatus);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const documentQuery = useQuery({
@@ -38,6 +41,29 @@ export default function DocumentDetailsPage() {
     mutationFn: authApi.documentDownloadAccess,
     onSuccess: (access) => {
       window.open(access.url, "_blank", "noopener,noreferrer");
+    },
+  });
+
+  const embeddingStatusQuery = useQuery({
+    queryKey: ["embedding-status", documentId],
+    queryFn: async () => {
+      const status = await authApi.embeddingStatus(documentId);
+      setSourceStatus(status);
+      return status;
+    },
+    refetchInterval: (queryResult) => {
+      const status = queryResult.state.data?.status;
+      return status === "PROCESSING" || status === "EMBEDDING" ? 3000 : false;
+    },
+  });
+
+  const processEmbeddings = useMutation({
+    mutationFn: authApi.processDocumentEmbeddings,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["embedding-status", documentId] });
+      void queryClient.invalidateQueries({ queryKey: ["documents", documentId] });
+      void queryClient.invalidateQueries({ queryKey: ["embedding-stats"] });
+      void queryClient.invalidateQueries({ queryKey: ["embedding-chunks"] });
     },
   });
 
@@ -97,6 +123,12 @@ export default function DocumentDetailsPage() {
         </div>
       ) : null}
 
+      {processEmbeddings.error ? (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {processEmbeddings.error.message}
+        </div>
+      ) : null}
+
       <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="rounded-md border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
           <h2 className="text-base font-semibold">Document metadata</h2>
@@ -136,8 +168,8 @@ export default function DocumentDetailsPage() {
           <ScanSearch className="h-5 w-5 text-teal-700 dark:text-teal-300" aria-hidden="true" />
           <h2 className="mt-3 text-base font-semibold">PDF preview placeholder</h2>
           <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-            File storage and secure download are ready. Inline PDF preview, OCR, extraction,
-            chunking, embeddings, and retrieval are intentionally reserved for later phases.
+            File storage, secure download, extraction, chunking, and embeddings are ready. Inline
+            PDF preview, OCR, and retrieval are intentionally reserved for later phases.
           </p>
           <div className="mt-6 flex min-h-72 items-center justify-center rounded-md border border-dashed border-zinc-300 bg-zinc-50 px-6 text-center dark:border-zinc-800 dark:bg-zinc-900/30">
             <div>
@@ -153,6 +185,12 @@ export default function DocumentDetailsPage() {
           </div>
         </div>
       </section>
+
+      <EmbeddingStatusCard
+        status={embeddingStatusQuery.data}
+        isProcessing={processEmbeddings.isPending}
+        onProcess={() => processEmbeddings.mutate(document.id)}
+      />
 
       {deleteOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">

@@ -15,6 +15,7 @@ export const uploadStatuses: Array<{ label: string; value: UploadStatus }> = [
 export const processingStatuses: Array<{ label: string; value: ProcessingStatus }> = [
   { label: "Pending", value: "PENDING" },
   { label: "Processing", value: "PROCESSING" },
+  { label: "Embedding", value: "EMBEDDING" },
   { label: "Completed", value: "COMPLETED" },
   { label: "Failed", value: "FAILED" },
 ];

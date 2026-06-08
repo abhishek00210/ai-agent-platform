@@ -9,6 +9,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type {
   StorageDownloadAccess,
+  StorageDownloadResult,
   StorageProvider,
   StorageUploadInput,
   StorageUploadResult,
@@ -64,6 +65,27 @@ export class S3StorageProvider implements StorageProvider {
       bucket: this.bucketName(),
       provider: this.providerName,
       etag: result.ETag,
+    };
+  }
+
+  async download(key: string): Promise<StorageDownloadResult> {
+    this.assertConfigured();
+
+    const result = await this.client.send(
+      new GetObjectCommand({
+        Bucket: this.bucketName(),
+        Key: key,
+      }),
+    );
+
+    if (!result.Body) {
+      throw new ServiceUnavailableException("Stored object did not return a body.");
+    }
+
+    return {
+      body: Buffer.from(await result.Body.transformToByteArray()),
+      contentType: result.ContentType,
+      contentLength: result.ContentLength,
     };
   }
 

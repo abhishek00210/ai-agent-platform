@@ -5,6 +5,7 @@ import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { AgentModule } from "./modules/agent/agent.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { BillingModule } from "./modules/billing/billing.module";
+import { EmbeddingModule } from "./modules/embedding/embedding.module";
 import { HealthModule } from "./modules/health/health.module";
 import { KnowledgeBaseModule } from "./modules/knowledge-base/knowledge-base.module";
 import { MailModule } from "./modules/mail/mail.module";
@@ -50,6 +51,7 @@ import { SecurityModule } from "./security/security.module";
     AgentModule,
     KnowledgeBaseModule,
     WebsiteScraperModule,
+    EmbeddingModule,
     VoiceModule,
     TwilioModule,
     MailModule,

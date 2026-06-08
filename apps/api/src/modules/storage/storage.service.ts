@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type {
   StorageDownloadAccess,
+  StorageDownloadResult,
   StorageUploadInput,
   StorageUploadResult,
 } from "./storage.provider";
@@ -24,6 +25,10 @@ export class StorageService {
 
   upload(input: StorageUploadInput): Promise<StorageUploadResult> {
     return this.provider.upload(input);
+  }
+
+  download(key: string): Promise<StorageDownloadResult> {
+    return this.provider.download(key);
   }
 
   delete(key: string): Promise<void> {

@@ -53,6 +53,7 @@ enum UploadStatus {
 enum ProcessingStatus {
   PENDING
   PROCESSING
+  EMBEDDING
   COMPLETED
   FAILED
 }
@@ -80,6 +81,8 @@ model Organization {
   documents Document[]
   websiteSources WebsiteSource[]
   websiteContents WebsiteContent[]
+  knowledgeChunks KnowledgeChunk[]
+  knowledgeEmbeddings KnowledgeEmbedding[]
   invitations OrganizationInvitation[]
   auditEvents AuditEvent[]
 
@@ -237,6 +240,7 @@ model KnowledgeBase {
   agent        Agent?       @relation(fields: [agentId], references: [id], onDelete: SetNull)
   documents    Document[]
   websiteSources WebsiteSource[]
+  knowledgeChunks KnowledgeChunk[]
 
   @@index([organizationId])
   @@index([agentId])
@@ -262,6 +266,7 @@ model WebsiteSource {
   organization  Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   knowledgeBase KnowledgeBase   @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
   content       WebsiteContent?
+  chunks        KnowledgeChunk[]
 
   @@index([organizationId])
   @@index([knowledgeBaseId])
@@ -314,6 +319,7 @@ model Document {
   organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
   uploader      User?         @relation("DocumentUploader", fields: [uploadedBy], references: [id], onDelete: SetNull)
+  chunks        KnowledgeChunk[]
 
   @@index([organizationId])
   @@index([knowledgeBaseId])
@@ -323,4 +329,53 @@ model Document {
   @@index([processingStatus])
   @@index([deletedAt])
   @@map("documents")
+}
+
+model KnowledgeChunk {
+  id              String   @id @default(uuid())
+  organizationId  String
+  knowledgeBaseId String
+  documentId      String?
+  websiteSourceId String?
+  chunkIndex      Int
+  chunkText       String   @db.Text
+  tokenCount      Int
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  document      Document?     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  websiteSource WebsiteSource? @relation(fields: [websiteSourceId], references: [id], onDelete: Cascade)
+  embedding     KnowledgeEmbedding?
+
+  @@unique([documentId, chunkIndex])
+  @@unique([websiteSourceId, chunkIndex])
+  @@index([organizationId])
+  @@index([knowledgeBaseId])
+  @@index([documentId])
+  @@index([websiteSourceId])
+  @@index([chunkIndex])
+  @@index([createdAt])
+  @@map("knowledge_chunks")
+}
+
+model KnowledgeEmbedding {
+  id              String   @id @default(uuid())
+  organizationId  String
+  chunkId         String   @unique
+  embeddingModel  String
+  embeddingVector Float[]
+  dimensions      Int
+  createdAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  chunk        KnowledgeChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([embeddingModel])
+  @@index([dimensions])
+  @@index([createdAt])
+  @@map("knowledge_embeddings")
 }

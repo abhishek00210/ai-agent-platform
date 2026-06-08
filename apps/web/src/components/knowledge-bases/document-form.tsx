@@ -20,7 +20,7 @@ const documentFormSchema = z.object({
   name: z.string().trim().min(1, "Document name is required.").max(150, "Name is too long."),
   description: z.string().trim().max(500, "Description is too long.").optional(),
   uploadStatus: z.enum(["PENDING", "UPLOADED", "FAILED"]),
-  processingStatus: z.enum(["PENDING", "PROCESSING", "COMPLETED", "FAILED"]),
+  processingStatus: z.enum(["PENDING", "PROCESSING", "EMBEDDING", "COMPLETED", "FAILED"]),
 });
 
 type DocumentFormValues = z.infer<typeof documentFormSchema>;

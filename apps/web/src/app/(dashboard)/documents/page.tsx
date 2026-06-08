@@ -492,7 +492,7 @@ function StatusBadge({ label, tone }: { label: string; tone: string }) {
         "inline-flex rounded-md px-2 py-1 text-xs font-medium",
         (tone === "COMPLETED" || tone === "UPLOADED") &&
           "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
-        (tone === "PENDING" || tone === "PROCESSING") &&
+        (tone === "PENDING" || tone === "PROCESSING" || tone === "EMBEDDING") &&
           "bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300",
         tone === "FAILED" && "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300",
       )}

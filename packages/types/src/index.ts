@@ -5,7 +5,7 @@ export type MemberRole = "OWNER" | "ADMIN" | "MEMBER";
 export type AgentStatus = "ACTIVE" | "INACTIVE" | "DRAFT";
 export type KnowledgeBaseStatus = "ACTIVE" | "INACTIVE" | "DRAFT";
 export type UploadStatus = "PENDING" | "UPLOADED" | "FAILED";
-export type ProcessingStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+export type ProcessingStatus = "PENDING" | "PROCESSING" | "EMBEDDING" | "COMPLETED" | "FAILED";
 export type WebsiteSourceStatus = "PENDING" | "SCRAPING" | "COMPLETED" | "FAILED";
 
 export interface OrganizationSummary {
@@ -225,6 +225,67 @@ export interface UploadPdfInput {
 export interface DocumentDownloadAccess {
   url: string;
   expiresInSeconds: number;
+}
+
+export interface EmbeddingSourceStatus {
+  sourceId: string;
+  sourceType: "document" | "website";
+  status: ProcessingStatus | WebsiteSourceStatus;
+  queued: boolean;
+  chunkCount: number;
+  embeddingCount: number;
+}
+
+export interface EmbeddingModelStats {
+  embeddingModel: string;
+  dimensions: number;
+  totalEmbeddings: number;
+}
+
+export interface EmbeddingStats {
+  totalDocuments: number;
+  totalWebsites: number;
+  totalChunks: number;
+  totalEmbeddings: number;
+  processedSources: number;
+  failedSources: number;
+  processingStatus: "PENDING" | "COMPLETED" | "FAILED";
+  models: EmbeddingModelStats[];
+}
+
+export interface KnowledgeChunkSummary {
+  id: string;
+  organizationId: string;
+  knowledgeBaseId: string;
+  documentId: string | null;
+  websiteSourceId: string | null;
+  chunkIndex: number;
+  chunkText: string;
+  tokenCount: number;
+  metadata: unknown;
+  createdAt: string;
+  updatedAt: string;
+  embedding: {
+    id: string;
+    embeddingModel: string;
+    dimensions: number;
+    createdAt: string;
+  } | null;
+}
+
+export interface KnowledgeChunkListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  data: KnowledgeChunkSummary[];
+}
+
+export interface KnowledgeChunkListQuery {
+  page?: number;
+  limit?: number;
+  documentId?: string;
+  websiteSourceId?: string;
+  search?: string;
 }
 
 export interface WebsiteContentDetails {

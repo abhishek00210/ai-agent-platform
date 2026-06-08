@@ -17,6 +17,8 @@ const envSchema = z.object({
   TWILIO_PHONE_NUMBER: z.string().optional().default(""),
   OPENAI_API_KEY: z.string().optional().default(""),
   OPENAI_REALTIME_MODEL: z.string().default("gpt-4o-realtime-preview"),
+  OPENAI_EMBEDDING_MODEL: z.string().default("text-embedding-3-small"),
+  OPENAI_EMBEDDING_DIMENSIONS: z.coerce.number().int().positive().default(1536),
   STRIPE_SECRET_KEY: z.string().optional().default(""),
   STRIPE_WEBHOOK_SECRET: z.string().optional().default(""),
   S3_ENDPOINT: z.string().optional().default(""),
@@ -70,6 +72,8 @@ export const envConfig = () => {
     openai: {
       apiKey: env.OPENAI_API_KEY,
       realtimeModel: env.OPENAI_REALTIME_MODEL,
+      embeddingModel: env.OPENAI_EMBEDDING_MODEL,
+      embeddingDimensions: env.OPENAI_EMBEDDING_DIMENSIONS,
     },
     stripe: {
       secretKey: env.STRIPE_SECRET_KEY,

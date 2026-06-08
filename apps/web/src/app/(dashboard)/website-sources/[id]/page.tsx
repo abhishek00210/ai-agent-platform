@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button, cn } from "@ai-agent-platform/ui";
+import { EmbeddingStatusCard } from "@/components/knowledge-bases/embedding-status-card";
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageLoader } from "@/components/layout/page-loader";
@@ -15,6 +16,7 @@ import {
   formatWebsiteSourceStatus,
   websiteSourceStatusTone,
 } from "@/lib/website-source-options";
+import { useEmbeddingStore } from "@/store/embedding-store";
 import { useWebsiteSourceStore } from "@/store/website-source-store";
 
 export default function WebsiteSourceDetailsPage() {
@@ -22,6 +24,7 @@ export default function WebsiteSourceDetailsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const setSelectedWebsiteSource = useWebsiteSourceStore((state) => state.setSelectedWebsiteSource);
+  const setSourceStatus = useEmbeddingStore((state) => state.setSourceStatus);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const websiteSourceId = params.id;
@@ -45,6 +48,30 @@ export default function WebsiteSourceDetailsPage() {
       setNotice("Website scraping queued.");
       void queryClient.invalidateQueries({ queryKey: ["website-sources", websiteSourceId] });
       void queryClient.invalidateQueries({ queryKey: ["website-sources"] });
+    },
+  });
+
+  const embeddingStatusQuery = useQuery({
+    queryKey: ["embedding-status", websiteSourceId],
+    queryFn: async () => {
+      const status = await authApi.embeddingStatus(websiteSourceId);
+      setSourceStatus(status);
+      return status;
+    },
+    refetchInterval: (queryResult) => {
+      const status = queryResult.state.data?.status;
+      return status === "SCRAPING" || status === "PENDING" ? 3000 : false;
+    },
+  });
+
+  const processEmbeddings = useMutation({
+    mutationFn: authApi.processWebsiteEmbeddings,
+    onSuccess: () => {
+      setNotice("Website embedding processing queued.");
+      void queryClient.invalidateQueries({ queryKey: ["embedding-status", websiteSourceId] });
+      void queryClient.invalidateQueries({ queryKey: ["website-sources", websiteSourceId] });
+      void queryClient.invalidateQueries({ queryKey: ["embedding-stats"] });
+      void queryClient.invalidateQueries({ queryKey: ["embedding-chunks"] });
     },
   });
 
@@ -116,6 +143,12 @@ export default function WebsiteSourceDetailsPage() {
         </div>
       ) : null}
 
+      {processEmbeddings.error ? (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          {processEmbeddings.error.message}
+        </div>
+      ) : null}
+
       <section className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
         <div className="rounded-md border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
           <h2 className="text-base font-semibold">Website information</h2>
@@ -156,6 +189,12 @@ export default function WebsiteSourceDetailsPage() {
           </div>
         </div>
       </section>
+
+      <EmbeddingStatusCard
+        status={embeddingStatusQuery.data}
+        isProcessing={processEmbeddings.isPending}
+        onProcess={() => processEmbeddings.mutate(websiteSource.id)}
+      />
 
       <section className="rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
         <div className="border-b border-zinc-200 p-6 dark:border-zinc-800">

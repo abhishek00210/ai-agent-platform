@@ -11,10 +11,14 @@ import type {
   DocumentDownloadAccess,
   DocumentListQuery,
   DocumentListResponse,
+  EmbeddingSourceStatus,
+  EmbeddingStats,
   ForgotPasswordInput,
   HealthResponse,
   CurrentOrganization,
   InviteMemberInput,
+  KnowledgeChunkListQuery,
+  KnowledgeChunkListResponse,
   KnowledgeBaseDetails,
   KnowledgeBaseListQuery,
   KnowledgeBaseListResponse,
@@ -294,6 +298,35 @@ export class ApiClient {
     return this.request<{ success: true }>(`/website-sources/${websiteSourceId}`, {
       method: "DELETE",
     });
+  }
+
+  async processDocumentEmbeddings(documentId: string): Promise<EmbeddingSourceStatus> {
+    return this.request<EmbeddingSourceStatus>(`/embeddings/process/document/${documentId}`, {
+      method: "POST",
+    });
+  }
+
+  async processWebsiteEmbeddings(websiteSourceId: string): Promise<EmbeddingSourceStatus> {
+    return this.request<EmbeddingSourceStatus>(`/embeddings/process/website/${websiteSourceId}`, {
+      method: "POST",
+    });
+  }
+
+  async embeddingStatus(sourceId: string): Promise<EmbeddingSourceStatus> {
+    return this.request<EmbeddingSourceStatus>(`/embeddings/status/${sourceId}`);
+  }
+
+  async embeddingStats(knowledgeBaseId: string): Promise<EmbeddingStats> {
+    return this.request<EmbeddingStats>(`/embeddings/stats/${knowledgeBaseId}`);
+  }
+
+  async knowledgeChunks(
+    knowledgeBaseId: string,
+    query: KnowledgeChunkListQuery = {},
+  ): Promise<KnowledgeChunkListResponse> {
+    return this.request<KnowledgeChunkListResponse>(
+      `/embeddings/chunks/${knowledgeBaseId}${toQuerySuffix(query)}`,
+    );
   }
 
   async request<T>(path: string, init: RequestInit = {}): Promise<T> {

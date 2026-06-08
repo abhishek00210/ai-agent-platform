@@ -20,6 +20,7 @@ export enum UploadStatusDto {
 export enum ProcessingStatusDto {
   PENDING = "PENDING",
   PROCESSING = "PROCESSING",
+  EMBEDDING = "EMBEDDING",
   COMPLETED = "COMPLETED",
   FAILED = "FAILED",
 }

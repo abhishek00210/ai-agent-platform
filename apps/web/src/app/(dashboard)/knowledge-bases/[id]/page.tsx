@@ -7,6 +7,7 @@ import {
   Download,
   Eye,
   FileText,
+  Globe2,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -24,7 +25,9 @@ import {
   DropdownMenuTrigger,
   cn,
 } from "@ai-agent-platform/ui";
+import { ChunkViewer } from "@/components/knowledge-bases/chunk-viewer";
 import { DocumentForm } from "@/components/knowledge-bases/document-form";
+import { EmbeddingOverview } from "@/components/knowledge-bases/embedding-overview";
 import { PdfUploadDropzone } from "@/components/knowledge-bases/pdf-upload-dropzone";
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
@@ -37,6 +40,7 @@ import {
   formatUploader,
 } from "@/lib/knowledge-base-options";
 import { authApi } from "@/lib/auth-api";
+import { useEmbeddingStore } from "@/store/embedding-store";
 import { useKnowledgeBaseStore } from "@/store/knowledge-base-store";
 
 export default function KnowledgeBaseDetailsPage() {
@@ -45,6 +49,7 @@ export default function KnowledgeBaseDetailsPage() {
   const queryClient = useQueryClient();
   const setSelectedKnowledgeBase = useKnowledgeBaseStore((state) => state.setSelectedKnowledgeBase);
   const setDocuments = useKnowledgeBaseStore((state) => state.setDocuments);
+  const setEmbeddingStats = useEmbeddingStore((state) => state.setStats);
   const [documentModal, setDocumentModal] = useState<"create" | DocumentSummary | null>(null);
   const [deleteDocumentTarget, setDeleteDocumentTarget] = useState<DocumentSummary | null>(null);
   const [deleteKnowledgeBaseOpen, setDeleteKnowledgeBaseOpen] = useState(false);
@@ -66,6 +71,20 @@ export default function KnowledgeBaseDetailsPage() {
       const result = await authApi.documents({ knowledgeBaseId, limit: 100 });
       setDocuments(result);
       return result;
+    },
+  });
+
+  const websitesQuery = useQuery({
+    queryKey: ["website-sources", { knowledgeBaseId, limit: 100 }],
+    queryFn: () => authApi.websiteSources({ knowledgeBaseId, limit: 100 }),
+  });
+
+  const embeddingStatsQuery = useQuery({
+    queryKey: ["embedding-stats", knowledgeBaseId],
+    queryFn: async () => {
+      const stats = await authApi.embeddingStats(knowledgeBaseId);
+      setEmbeddingStats(stats);
+      return stats;
     },
   });
 
@@ -206,6 +225,8 @@ export default function KnowledgeBaseDetailsPage() {
         onUploaded={() => setNotice("PDF uploaded successfully.")}
       />
 
+      <EmbeddingOverview stats={embeddingStatsQuery.data} />
+
       <section className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex flex-col gap-3 border-b border-zinc-200 p-6 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -265,6 +286,64 @@ export default function KnowledgeBaseDetailsPage() {
           </div>
         ) : null}
       </section>
+
+      <section className="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="flex flex-col gap-3 border-b border-zinc-200 p-6 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold">Websites</h2>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Scraped websites attached to this knowledge base.
+            </p>
+          </div>
+          <Button asChild>
+            <Link href="/website-sources/create">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Add Website
+            </Link>
+          </Button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="border-b border-zinc-200 text-xs uppercase text-zinc-500 dark:border-zinc-800">
+              <tr>
+                <th className="px-6 py-3 font-medium">Title</th>
+                <th className="px-6 py-3 font-medium">URL</th>
+                <th className="px-6 py-3 font-medium">Status</th>
+                <th className="px-6 py-3 font-medium">Words</th>
+                <th className="px-6 py-3 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              {websitesQuery.data?.data.map((website) => (
+                <tr key={website.id}>
+                  <td className="px-6 py-4 font-medium">{website.title ?? "Untitled website"}</td>
+                  <td className="max-w-xs px-6 py-4 text-zinc-600 dark:text-zinc-300">
+                    <span className="block truncate">{website.url}</span>
+                  </td>
+                  <td className="px-6 py-4">{website.status}</td>
+                  <td className="px-6 py-4">{website.content?.wordCount ?? 0}</td>
+                  <td className="px-6 py-4">
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/website-sources/${website.id}`}>View</Link>
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {!websitesQuery.isLoading && websitesQuery.data?.data.length === 0 ? (
+          <div className="p-6">
+            <EmptyState
+              icon={Globe2}
+              title="No websites added"
+              description="Add a website source to include scraped content in future retrieval."
+            />
+          </div>
+        ) : null}
+      </section>
+
+      <ChunkViewer knowledgeBaseId={knowledgeBase.id} />
 
       {documentModal ? (
         <DocumentModal
@@ -504,7 +583,7 @@ function StatusBadge({ label, tone }: { label: string; tone: string }) {
         "inline-flex rounded-md px-2 py-1 text-xs font-medium",
         (tone === "COMPLETED" || tone === "UPLOADED") &&
           "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
-        (tone === "PENDING" || tone === "PROCESSING") &&
+        (tone === "PENDING" || tone === "PROCESSING" || tone === "EMBEDDING") &&
           "bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300",
         tone === "FAILED" && "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300",
       )}

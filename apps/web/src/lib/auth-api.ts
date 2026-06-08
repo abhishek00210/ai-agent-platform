@@ -12,8 +12,12 @@ import type {
   DocumentDownloadAccess,
   DocumentListQuery,
   DocumentListResponse,
+  EmbeddingSourceStatus,
+  EmbeddingStats,
   ForgotPasswordInput,
   InviteMemberInput,
+  KnowledgeChunkListQuery,
+  KnowledgeChunkListResponse,
   KnowledgeBaseDetails,
   KnowledgeBaseListQuery,
   KnowledgeBaseListResponse,
@@ -255,6 +259,27 @@ export const authApi = {
     return apiRequest<{ success: true }>(`/website-sources/${websiteSourceId}`, {
       method: "DELETE",
     });
+  },
+  processDocumentEmbeddings(documentId: string) {
+    return apiRequest<EmbeddingSourceStatus>(`/embeddings/process/document/${documentId}`, {
+      method: "POST",
+    });
+  },
+  processWebsiteEmbeddings(websiteSourceId: string) {
+    return apiRequest<EmbeddingSourceStatus>(`/embeddings/process/website/${websiteSourceId}`, {
+      method: "POST",
+    });
+  },
+  embeddingStatus(sourceId: string) {
+    return apiRequest<EmbeddingSourceStatus>(`/embeddings/status/${sourceId}`);
+  },
+  embeddingStats(knowledgeBaseId: string) {
+    return apiRequest<EmbeddingStats>(`/embeddings/stats/${knowledgeBaseId}`);
+  },
+  knowledgeChunks(knowledgeBaseId: string, query: KnowledgeChunkListQuery = {}) {
+    return apiRequest<KnowledgeChunkListResponse>(
+      `/embeddings/chunks/${knowledgeBaseId}${toQuerySuffix(query)}`,
+    );
   },
 };
 
