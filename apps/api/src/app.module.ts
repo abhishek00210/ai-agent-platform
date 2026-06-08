@@ -14,6 +14,7 @@ import { TenantModule } from "./modules/tenant/tenant.module";
 import { TwilioModule } from "./modules/twilio/twilio.module";
 import { UserModule } from "./modules/user/user.module";
 import { VoiceModule } from "./modules/voice/voice.module";
+import { WebsiteScraperModule } from "./modules/website-scraper/website-scraper.module";
 import { envConfig, validateEnv } from "./config/env.schema";
 import { DatabaseModule } from "./database/database.module";
 import { RedisModule } from "./redis/redis.module";
@@ -48,6 +49,7 @@ import { SecurityModule } from "./security/security.module";
     OrganizationModule,
     AgentModule,
     KnowledgeBaseModule,
+    WebsiteScraperModule,
     VoiceModule,
     TwilioModule,
     MailModule,

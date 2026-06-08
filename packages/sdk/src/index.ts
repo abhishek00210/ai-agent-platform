@@ -6,6 +6,7 @@ import type {
   CreateAgentInput,
   CreateDocumentInput,
   CreateKnowledgeBaseInput,
+  CreateWebsiteSourceInput,
   DocumentDetails,
   DocumentDownloadAccess,
   DocumentListQuery,
@@ -27,6 +28,9 @@ import type {
   UpdateKnowledgeBaseInput,
   UpdateMemberRoleInput,
   UpdateOrganizationInput,
+  WebsiteSourceDetails,
+  WebsiteSourceListQuery,
+  WebsiteSourceListResponse,
 } from "@ai-agent-platform/types";
 
 export interface ApiClientOptions {
@@ -261,6 +265,34 @@ export class ApiClient {
     return this.request<DocumentDetails>("/documents/upload", {
       method: "POST",
       body: formData,
+    });
+  }
+
+  async websiteSources(query: WebsiteSourceListQuery = {}): Promise<WebsiteSourceListResponse> {
+    const suffix = toQuerySuffix(query);
+    return this.request<WebsiteSourceListResponse>(`/website-sources${suffix}`);
+  }
+
+  async createWebsiteSource(input: CreateWebsiteSourceInput): Promise<WebsiteSourceDetails> {
+    return this.request<WebsiteSourceDetails>("/website-sources", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async websiteSource(websiteSourceId: string): Promise<WebsiteSourceDetails> {
+    return this.request<WebsiteSourceDetails>(`/website-sources/${websiteSourceId}`);
+  }
+
+  async rescrapeWebsiteSource(websiteSourceId: string): Promise<WebsiteSourceDetails> {
+    return this.request<WebsiteSourceDetails>(`/website-sources/${websiteSourceId}/rescrape`, {
+      method: "POST",
+    });
+  }
+
+  async deleteWebsiteSource(websiteSourceId: string): Promise<{ success: true }> {
+    return this.request<{ success: true }>(`/website-sources/${websiteSourceId}`, {
+      method: "DELETE",
     });
   }
 

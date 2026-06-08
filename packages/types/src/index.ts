@@ -6,6 +6,7 @@ export type AgentStatus = "ACTIVE" | "INACTIVE" | "DRAFT";
 export type KnowledgeBaseStatus = "ACTIVE" | "INACTIVE" | "DRAFT";
 export type UploadStatus = "PENDING" | "UPLOADED" | "FAILED";
 export type ProcessingStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+export type WebsiteSourceStatus = "PENDING" | "SCRAPING" | "COMPLETED" | "FAILED";
 
 export interface OrganizationSummary {
   id: string;
@@ -224,6 +225,56 @@ export interface UploadPdfInput {
 export interface DocumentDownloadAccess {
   url: string;
   expiresInSeconds: number;
+}
+
+export interface WebsiteContentDetails {
+  id: string;
+  content: string;
+  htmlContent: string;
+  wordCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WebsiteSourceSummary {
+  id: string;
+  organizationId: string;
+  knowledgeBaseId: string;
+  knowledgeBase: {
+    id: string;
+    name: string;
+  };
+  url: string;
+  title: string | null;
+  description: string | null;
+  status: WebsiteSourceStatus;
+  contentLength: number;
+  lastScrapedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  content: WebsiteContentDetails | null;
+}
+
+export type WebsiteSourceDetails = WebsiteSourceSummary;
+
+export interface WebsiteSourceListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  data: WebsiteSourceSummary[];
+}
+
+export interface WebsiteSourceListQuery {
+  page?: number;
+  limit?: number;
+  knowledgeBaseId?: string;
+  search?: string;
+  status?: WebsiteSourceStatus;
+}
+
+export interface CreateWebsiteSourceInput {
+  knowledgeBaseId: string;
+  url: string;
 }
 
 export interface ApiEnvelope<T> {

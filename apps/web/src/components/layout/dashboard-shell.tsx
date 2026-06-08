@@ -84,7 +84,7 @@ const navigation: NavSection[] = [
         children: [
           { href: "/knowledge-bases", label: "Knowledge Bases", icon: BookOpen },
           { href: "/documents", label: "Documents", icon: FileText },
-          { href: "/knowledge/websites", label: "Websites", icon: Globe2 },
+          { href: "/website-sources", label: "Websites", icon: Globe2 },
         ],
       },
     ],
@@ -162,6 +162,7 @@ const pageTitles = new Map<string, string>([
   ["/documents", "Documents"],
   ["/knowledge/documents", "Documents"],
   ["/knowledge/websites", "Websites"],
+  ["/website-sources", "Websites"],
   ["/conversations/history", "Chat history"],
   ["/voice", "Voice"],
   ["/voice/calls", "Calls"],

@@ -6,6 +6,7 @@ import type {
   CreateAgentInput,
   CreateDocumentInput,
   CreateKnowledgeBaseInput,
+  CreateWebsiteSourceInput,
   CurrentOrganization,
   DocumentDetails,
   DocumentDownloadAccess,
@@ -26,6 +27,9 @@ import type {
   UpdateKnowledgeBaseInput,
   UpdateMemberRoleInput,
   UpdateOrganizationInput,
+  WebsiteSourceDetails,
+  WebsiteSourceListQuery,
+  WebsiteSourceListResponse,
 } from "@ai-agent-platform/types";
 import { webEnv } from "@/config/env";
 import { useAuthStore } from "@/store/auth-store";
@@ -229,6 +233,28 @@ export const authApi = {
     onProgress?: (progress: number) => void;
   }) {
     return uploadPdfWithProgress(input);
+  },
+  websiteSources(query: WebsiteSourceListQuery = {}) {
+    return apiRequest<WebsiteSourceListResponse>(`/website-sources${toQuerySuffix(query)}`);
+  },
+  createWebsiteSource(input: CreateWebsiteSourceInput) {
+    return apiRequest<WebsiteSourceDetails>("/website-sources", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  websiteSource(websiteSourceId: string) {
+    return apiRequest<WebsiteSourceDetails>(`/website-sources/${websiteSourceId}`);
+  },
+  rescrapeWebsiteSource(websiteSourceId: string) {
+    return apiRequest<WebsiteSourceDetails>(`/website-sources/${websiteSourceId}/rescrape`, {
+      method: "POST",
+    });
+  },
+  deleteWebsiteSource(websiteSourceId: string) {
+    return apiRequest<{ success: true }>(`/website-sources/${websiteSourceId}`, {
+      method: "DELETE",
+    });
   },
 };
 

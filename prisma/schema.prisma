@@ -57,6 +57,13 @@ enum ProcessingStatus {
   FAILED
 }
 
+enum WebsiteSourceStatus {
+  PENDING
+  SCRAPING
+  COMPLETED
+  FAILED
+}
+
 model Organization {
   id        String             @id @default(uuid())
   name      String
@@ -71,6 +78,8 @@ model Organization {
   agents  Agent[]
   knowledgeBases KnowledgeBase[]
   documents Document[]
+  websiteSources WebsiteSource[]
+  websiteContents WebsiteContent[]
   invitations OrganizationInvitation[]
   auditEvents AuditEvent[]
 
@@ -227,12 +236,58 @@ model KnowledgeBase {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   agent        Agent?       @relation(fields: [agentId], references: [id], onDelete: SetNull)
   documents    Document[]
+  websiteSources WebsiteSource[]
 
   @@index([organizationId])
   @@index([agentId])
   @@index([status])
   @@index([deletedAt])
   @@map("knowledge_bases")
+}
+
+model WebsiteSource {
+  id              String              @id @default(uuid())
+  organizationId  String
+  knowledgeBaseId String
+  url             String
+  title           String?
+  description     String?
+  status          WebsiteSourceStatus @default(PENDING)
+  contentLength   Int                 @default(0)
+  lastScrapedAt   DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?
+
+  organization  Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase   @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  content       WebsiteContent?
+
+  @@index([organizationId])
+  @@index([knowledgeBaseId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([lastScrapedAt])
+  @@index([deletedAt])
+  @@map("website_sources")
+}
+
+model WebsiteContent {
+  id              String   @id @default(uuid())
+  websiteSourceId String   @unique
+  organizationId  String
+  content         String   @db.Text
+  htmlContent     String   @db.Text
+  wordCount       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  websiteSource WebsiteSource @relation(fields: [websiteSourceId], references: [id], onDelete: Cascade)
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([wordCount])
+  @@map("website_content")
 }
 
 model Document {
