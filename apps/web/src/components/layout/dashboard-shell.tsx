@@ -15,6 +15,7 @@ import {
   CircleUserRound,
   FileText,
   Globe2,
+  HelpCircle,
   LayoutDashboard,
   LockKeyhole,
   LogOut,
@@ -85,6 +86,7 @@ const navigation: NavSection[] = [
           { href: "/knowledge-bases", label: "Knowledge Bases", icon: BookOpen },
           { href: "/documents", label: "Documents", icon: FileText },
           { href: "/website-sources", label: "Websites", icon: Globe2 },
+          { href: "/faqs", label: "FAQs", icon: HelpCircle },
         ],
       },
     ],
@@ -93,10 +95,10 @@ const navigation: NavSection[] = [
     label: "Operations",
     items: [
       {
-        href: "/conversations/history",
+        href: "/conversations",
         label: "Conversations",
         icon: Activity,
-        children: [{ href: "/conversations/history", label: "Chat History", icon: Activity }],
+        children: [{ href: "/conversations", label: "Chat History", icon: Activity }],
       },
       {
         href: "/voice/calls",
@@ -163,6 +165,8 @@ const pageTitles = new Map<string, string>([
   ["/knowledge/documents", "Documents"],
   ["/knowledge/websites", "Websites"],
   ["/website-sources", "Websites"],
+  ["/faqs", "FAQs"],
+  ["/conversations", "Conversations"],
   ["/conversations/history", "Chat history"],
   ["/voice", "Voice"],
   ["/voice/calls", "Calls"],

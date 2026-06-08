@@ -4,16 +4,27 @@ import type {
   AgentListQuery,
   AgentListResponse,
   CreateAgentInput,
+  CreateConversationInput,
   CreateDocumentInput,
+  CreateFaqInput,
   CreateKnowledgeBaseInput,
   CreateWebsiteSourceInput,
   CurrentOrganization,
+  ConversationAnalytics,
+  ConversationDetails,
+  ConversationListQuery,
+  ConversationListResponse,
+  ConversationMemoryResponse,
+  CreateConversationResponse,
   DocumentDetails,
   DocumentDownloadAccess,
   DocumentListQuery,
   DocumentListResponse,
   EmbeddingSourceStatus,
   EmbeddingStats,
+  FaqDetails,
+  FaqListQuery,
+  FaqListResponse,
   ForgotPasswordInput,
   InviteMemberInput,
   KnowledgeChunkListQuery,
@@ -22,12 +33,23 @@ import type {
   KnowledgeBaseListQuery,
   KnowledgeBaseListResponse,
   LoginInput,
+  MessageListQuery,
+  MessageListResponse,
   OrganizationInvitationSummary,
   OrganizationMemberSummary,
   RegisterInput,
+  RagAnalytics,
+  RagAskInput,
+  RagAskResponse,
+  RagSearchInput,
+  RagSearchResponse,
   ResetPasswordInput,
+  SendMessageInput,
+  SendChatMessageInput,
+  SendChatMessageResponse,
   UpdateAgentInput,
   UpdateDocumentInput,
+  UpdateFaqInput,
   UpdateKnowledgeBaseInput,
   UpdateMemberRoleInput,
   UpdateOrganizationInput,
@@ -280,6 +302,115 @@ export const authApi = {
     return apiRequest<KnowledgeChunkListResponse>(
       `/embeddings/chunks/${knowledgeBaseId}${toQuerySuffix(query)}`,
     );
+  },
+  conversations(query: ConversationListQuery = {}) {
+    return apiRequest<ConversationListResponse>(`/conversations${toQuerySuffix(query)}`);
+  },
+  createConversation(input: CreateConversationInput) {
+    return apiRequest<CreateConversationResponse>("/conversations", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  conversation(conversationId: string) {
+    return apiRequest<ConversationDetails>(`/conversations/${conversationId}`);
+  },
+  closeConversation(conversationId: string) {
+    return apiRequest<ConversationDetails>(`/conversations/${conversationId}/close`, {
+      method: "POST",
+    });
+  },
+  archiveConversation(conversationId: string) {
+    return apiRequest<ConversationDetails>(`/conversations/${conversationId}/archive`, {
+      method: "POST",
+    });
+  },
+  deleteConversation(conversationId: string) {
+    return apiRequest<{ success: true }>(`/conversations/${conversationId}`, {
+      method: "DELETE",
+    });
+  },
+  conversationMessages(conversationId: string, query: MessageListQuery = {}) {
+    return apiRequest<MessageListResponse>(
+      `/conversations/${conversationId}/messages${toQuerySuffix(query)}`,
+    );
+  },
+  sendConversationMessage(conversationId: string, input: SendMessageInput) {
+    return apiRequest<MessageListResponse["data"][number]>(
+      `/conversations/${conversationId}/messages`,
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    );
+  },
+  conversationAnalytics() {
+    return apiRequest<ConversationAnalytics>("/conversations/analytics");
+  },
+  conversationMemory(conversationId: string) {
+    return apiRequest<ConversationMemoryResponse>(`/memory/conversation/${conversationId}`);
+  },
+  refreshConversationMemory(conversationId: string) {
+    return apiRequest<ConversationMemoryResponse>(
+      `/memory/conversation/${conversationId}/refresh`,
+      {
+        method: "POST",
+      },
+    );
+  },
+  conversationMemoryFacts(conversationId: string) {
+    return apiRequest<ConversationMemoryResponse["facts"]>(
+      `/memory/conversation/${conversationId}/facts`,
+    );
+  },
+  deleteMemoryFact(factId: string) {
+    return apiRequest<{ success: true }>(`/memory/facts/${factId}`, {
+      method: "DELETE",
+    });
+  },
+  sendChatMessage(input: SendChatMessageInput) {
+    return apiRequest<SendChatMessageResponse>("/chat/send", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  faqs(query: FaqListQuery = {}) {
+    return apiRequest<FaqListResponse>(`/faqs${toQuerySuffix(query)}`);
+  },
+  createFaq(input: CreateFaqInput) {
+    return apiRequest<FaqDetails>("/faqs", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  faq(faqId: string) {
+    return apiRequest<FaqDetails>(`/faqs/${faqId}`);
+  },
+  updateFaq(faqId: string, input: UpdateFaqInput) {
+    return apiRequest<FaqDetails>(`/faqs/${faqId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+  deleteFaq(faqId: string) {
+    return apiRequest<{ success: true }>(`/faqs/${faqId}`, {
+      method: "DELETE",
+    });
+  },
+  askRag(input: RagAskInput) {
+    return apiRequest<RagAskResponse>("/rag/ask", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  searchKnowledgeBase(input: RagSearchInput) {
+    return apiRequest<RagSearchResponse>("/rag/search", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  ragAnalytics(knowledgeBaseId: string) {
+    return apiRequest<RagAnalytics>(`/rag/analytics/${knowledgeBaseId}`);
   },
 };
 

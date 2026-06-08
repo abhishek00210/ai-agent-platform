@@ -4,7 +4,9 @@ import type {
   AgentListQuery,
   AgentListResponse,
   CreateAgentInput,
+  CreateConversationInput,
   CreateDocumentInput,
+  CreateFaqInput,
   CreateKnowledgeBaseInput,
   CreateWebsiteSourceInput,
   DocumentDetails,
@@ -13,9 +15,18 @@ import type {
   DocumentListResponse,
   EmbeddingSourceStatus,
   EmbeddingStats,
+  FaqDetails,
+  FaqListQuery,
+  FaqListResponse,
   ForgotPasswordInput,
   HealthResponse,
   CurrentOrganization,
+  ConversationAnalytics,
+  ConversationDetails,
+  ConversationListQuery,
+  ConversationListResponse,
+  ConversationMemoryResponse,
+  CreateConversationResponse,
   InviteMemberInput,
   KnowledgeChunkListQuery,
   KnowledgeChunkListResponse,
@@ -23,12 +34,23 @@ import type {
   KnowledgeBaseListQuery,
   KnowledgeBaseListResponse,
   LoginInput,
+  MessageListQuery,
+  MessageListResponse,
   OrganizationInvitationSummary,
   OrganizationMemberSummary,
   RegisterInput,
+  RagAnalytics,
+  RagAskInput,
+  RagAskResponse,
+  RagSearchInput,
+  RagSearchResponse,
   ResetPasswordInput,
+  SendMessageInput,
+  SendChatMessageInput,
+  SendChatMessageResponse,
   UpdateAgentInput,
   UpdateDocumentInput,
+  UpdateFaqInput,
   UpdateKnowledgeBaseInput,
   UpdateMemberRoleInput,
   UpdateOrganizationInput,
@@ -327,6 +349,145 @@ export class ApiClient {
     return this.request<KnowledgeChunkListResponse>(
       `/embeddings/chunks/${knowledgeBaseId}${toQuerySuffix(query)}`,
     );
+  }
+
+  async conversations(query: ConversationListQuery = {}): Promise<ConversationListResponse> {
+    return this.request<ConversationListResponse>(`/conversations${toQuerySuffix(query)}`);
+  }
+
+  async createConversation(input: CreateConversationInput): Promise<CreateConversationResponse> {
+    return this.request<CreateConversationResponse>("/conversations", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async conversation(conversationId: string): Promise<ConversationDetails> {
+    return this.request<ConversationDetails>(`/conversations/${conversationId}`);
+  }
+
+  async closeConversation(conversationId: string): Promise<ConversationDetails> {
+    return this.request<ConversationDetails>(`/conversations/${conversationId}/close`, {
+      method: "POST",
+    });
+  }
+
+  async archiveConversation(conversationId: string): Promise<ConversationDetails> {
+    return this.request<ConversationDetails>(`/conversations/${conversationId}/archive`, {
+      method: "POST",
+    });
+  }
+
+  async deleteConversation(conversationId: string): Promise<{ success: true }> {
+    return this.request<{ success: true }>(`/conversations/${conversationId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async conversationMessages(
+    conversationId: string,
+    query: MessageListQuery = {},
+  ): Promise<MessageListResponse> {
+    return this.request<MessageListResponse>(
+      `/conversations/${conversationId}/messages${toQuerySuffix(query)}`,
+    );
+  }
+
+  async sendConversationMessage(
+    conversationId: string,
+    input: SendMessageInput,
+  ): Promise<MessageListResponse["data"][number]> {
+    return this.request<MessageListResponse["data"][number]>(
+      `/conversations/${conversationId}/messages`,
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    );
+  }
+
+  async conversationAnalytics(): Promise<ConversationAnalytics> {
+    return this.request<ConversationAnalytics>("/conversations/analytics");
+  }
+
+  async conversationMemory(conversationId: string): Promise<ConversationMemoryResponse> {
+    return this.request<ConversationMemoryResponse>(`/memory/conversation/${conversationId}`);
+  }
+
+  async refreshConversationMemory(conversationId: string): Promise<ConversationMemoryResponse> {
+    return this.request<ConversationMemoryResponse>(
+      `/memory/conversation/${conversationId}/refresh`,
+      {
+        method: "POST",
+      },
+    );
+  }
+
+  async conversationMemoryFacts(
+    conversationId: string,
+  ): Promise<ConversationMemoryResponse["facts"]> {
+    return this.request<ConversationMemoryResponse["facts"]>(
+      `/memory/conversation/${conversationId}/facts`,
+    );
+  }
+
+  async deleteMemoryFact(factId: string): Promise<{ success: true }> {
+    return this.request<{ success: true }>(`/memory/facts/${factId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async sendChatMessage(input: SendChatMessageInput): Promise<SendChatMessageResponse> {
+    return this.request<SendChatMessageResponse>("/chat/send", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async faqs(query: FaqListQuery = {}): Promise<FaqListResponse> {
+    return this.request<FaqListResponse>(`/faqs${toQuerySuffix(query)}`);
+  }
+
+  async createFaq(input: CreateFaqInput): Promise<FaqDetails> {
+    return this.request<FaqDetails>("/faqs", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async faq(faqId: string): Promise<FaqDetails> {
+    return this.request<FaqDetails>(`/faqs/${faqId}`);
+  }
+
+  async updateFaq(faqId: string, input: UpdateFaqInput): Promise<FaqDetails> {
+    return this.request<FaqDetails>(`/faqs/${faqId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async deleteFaq(faqId: string): Promise<{ success: true }> {
+    return this.request<{ success: true }>(`/faqs/${faqId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async askRag(input: RagAskInput): Promise<RagAskResponse> {
+    return this.request<RagAskResponse>("/rag/ask", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async searchKnowledgeBase(input: RagSearchInput): Promise<RagSearchResponse> {
+    return this.request<RagSearchResponse>("/rag/search", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async ragAnalytics(knowledgeBaseId: string): Promise<RagAnalytics> {
+    return this.request<RagAnalytics>(`/rag/analytics/${knowledgeBaseId}`);
   }
 
   async request<T>(path: string, init: RequestInit = {}): Promise<T> {

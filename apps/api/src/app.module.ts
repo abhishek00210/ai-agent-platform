@@ -5,11 +5,16 @@ import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { AgentModule } from "./modules/agent/agent.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { BillingModule } from "./modules/billing/billing.module";
+import { ConversationModule } from "./modules/conversation/conversation.module";
 import { EmbeddingModule } from "./modules/embedding/embedding.module";
+import { FaqModule } from "./modules/faq/faq.module";
 import { HealthModule } from "./modules/health/health.module";
 import { KnowledgeBaseModule } from "./modules/knowledge-base/knowledge-base.module";
 import { MailModule } from "./modules/mail/mail.module";
+import { MemoryModule } from "./modules/memory/memory.module";
 import { OrganizationModule } from "./modules/organization/organization.module";
+import { OpenAiModule } from "./modules/openai/openai.module";
+import { RagModule } from "./modules/rag/rag.module";
 import { StorageModule } from "./modules/storage/storage.module";
 import { TenantModule } from "./modules/tenant/tenant.module";
 import { TwilioModule } from "./modules/twilio/twilio.module";
@@ -49,9 +54,14 @@ import { SecurityModule } from "./security/security.module";
     UserModule,
     OrganizationModule,
     AgentModule,
+    ConversationModule,
     KnowledgeBaseModule,
+    OpenAiModule,
     WebsiteScraperModule,
     EmbeddingModule,
+    FaqModule,
+    RagModule,
+    MemoryModule,
     VoiceModule,
     TwilioModule,
     MailModule,

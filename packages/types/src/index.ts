@@ -7,6 +7,18 @@ export type KnowledgeBaseStatus = "ACTIVE" | "INACTIVE" | "DRAFT";
 export type UploadStatus = "PENDING" | "UPLOADED" | "FAILED";
 export type ProcessingStatus = "PENDING" | "PROCESSING" | "EMBEDDING" | "COMPLETED" | "FAILED";
 export type WebsiteSourceStatus = "PENDING" | "SCRAPING" | "COMPLETED" | "FAILED";
+export type FaqStatus = "ACTIVE" | "INACTIVE";
+export type ConversationChannel = "WEB_CHAT" | "VOICE" | "SMS" | "WHATSAPP";
+export type ConversationStatus = "ACTIVE" | "CLOSED" | "ARCHIVED";
+export type SenderType = "USER" | "ASSISTANT" | "SYSTEM";
+export type MessageType = "TEXT" | "SYSTEM_EVENT" | "TOOL_CALL" | "TOOL_RESULT";
+export type MemoryFactType =
+  | "USER_INFO"
+  | "BUSINESS_INFO"
+  | "APPOINTMENT"
+  | "CONTACT"
+  | "PREFERENCE"
+  | "CUSTOM";
 
 export interface OrganizationSummary {
   id: string;
@@ -336,6 +348,284 @@ export interface WebsiteSourceListQuery {
 export interface CreateWebsiteSourceInput {
   knowledgeBaseId: string;
   url: string;
+}
+
+export interface FaqSummary {
+  id: string;
+  organizationId: string;
+  knowledgeBaseId: string;
+  knowledgeBase?: {
+    id: string;
+    name: string;
+  };
+  question: string;
+  answer: string;
+  status: FaqStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type FaqDetails = FaqSummary;
+
+export interface FaqListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  data: FaqSummary[];
+}
+
+export interface FaqListQuery {
+  page?: number;
+  limit?: number;
+  knowledgeBaseId?: string;
+  search?: string;
+  status?: FaqStatus;
+}
+
+export interface CreateFaqInput {
+  knowledgeBaseId: string;
+  question: string;
+  answer: string;
+  status?: FaqStatus;
+}
+
+export interface UpdateFaqInput {
+  question?: string;
+  answer?: string;
+  status?: FaqStatus;
+}
+
+export type RagSourceType = "document" | "website" | "faq";
+
+export interface RagSourceCitation {
+  sourceId: string;
+  sourceType: RagSourceType;
+  sourceName: string;
+  relevanceScore: number;
+  chunkReference: number;
+  knowledgeBaseId: string;
+  documentId: string | null;
+  websiteSourceId: string | null;
+  faqEntryId: string | null;
+}
+
+export interface RagRetrievedChunk {
+  chunkId: string;
+  knowledgeBaseId: string;
+  knowledgeBaseName: string;
+  sourceId: string;
+  sourceType: RagSourceType;
+  sourceName: string;
+  chunkIndex: number;
+  chunkText: string;
+  tokenCount: number;
+  relevanceScore: number;
+}
+
+export interface RagAskInput {
+  agentId: string;
+  question: string;
+  topK?: number;
+}
+
+export interface RagSearchInput {
+  knowledgeBaseId: string;
+  query: string;
+  topK?: number;
+}
+
+export interface RagAskResponse {
+  answer: string;
+  sources: RagSourceCitation[];
+  retrievedChunks: RagRetrievedChunk[];
+  confidence: number;
+  metadata: {
+    retrievalTimeMs: number;
+    resultCount: number;
+    knowledgeBaseIds: string[];
+  };
+}
+
+export interface RagSearchResponse {
+  query: string;
+  answer: string;
+  results: RagRetrievedChunk[];
+  sources: RagSourceCitation[];
+  confidence: number;
+  retrievalTimeMs: number;
+}
+
+export interface RagAnalytics {
+  totalSearches: number;
+  averageRetrievalTime: number;
+  averageSimilarityScore: number;
+  failedRetrievals: number;
+  topQueries: Array<{
+    query: string;
+    count: number;
+  }>;
+  knowledgeUsage: {
+    documentChunks: number;
+    websiteChunks: number;
+    faqChunks: number;
+  };
+}
+
+export interface MessageSummary {
+  id: string;
+  organizationId: string;
+  conversationId: string;
+  senderType: SenderType;
+  content: string;
+  messageType: MessageType;
+  tokenCount: number;
+  metadata: unknown;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationSummary {
+  id: string;
+  organizationId: string;
+  agentId: string;
+  agent: {
+    id: string;
+    name: string;
+    status: AgentStatus;
+  };
+  visitorId: string | null;
+  sessionId: string | null;
+  channel: ConversationChannel;
+  status: ConversationStatus;
+  messageCount: number;
+  startedAt: string;
+  lastMessageAt: string | null;
+  endedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationDetails extends ConversationSummary {
+  messages: MessageSummary[];
+  statistics: {
+    messageCount: number;
+    tokenCount: number;
+    durationSeconds: number;
+  };
+}
+
+export interface ConversationListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  data: ConversationSummary[];
+}
+
+export interface ConversationListQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: ConversationStatus;
+  agentId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface CreateConversationInput {
+  agentId: string;
+  channel: ConversationChannel;
+}
+
+export interface CreateConversationResponse {
+  conversationId: string;
+  conversation: ConversationSummary;
+}
+
+export interface MessageListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  data: MessageSummary[];
+}
+
+export interface MessageListQuery {
+  page?: number;
+  limit?: number;
+}
+
+export interface SendMessageInput {
+  content: string;
+}
+
+export interface ConversationAnalytics {
+  totalConversations: number;
+  activeConversations: number;
+  closedConversations: number;
+  averageMessages: number;
+  averageDurationSeconds: number;
+  totalTokens: number;
+}
+
+export interface ConversationMemorySummary {
+  id: string;
+  organizationId: string;
+  conversationId: string;
+  summary: string;
+  messageCount: number;
+  tokenEstimate: number;
+  generatedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MemoryFact {
+  id: string;
+  organizationId: string;
+  conversationId: string;
+  factType: MemoryFactType;
+  factKey: string;
+  factValue: string;
+  confidence: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationMemoryResponse {
+  summary: ConversationMemorySummary | null;
+  facts: MemoryFact[];
+  history: ConversationMemorySummary[];
+  statistics: {
+    messagesProcessed: number;
+    currentMessageCount: number;
+    memoryUpdates: number;
+    tokenSavingsEstimate: number;
+    factCount: number;
+  };
+}
+
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+export interface SendChatMessageInput {
+  agentId: string;
+  conversationId: string;
+  message: string;
+}
+
+export interface SendChatMessageResponse {
+  userMessage: MessageSummary;
+  assistantMessage: MessageSummary;
+  sources: RagSourceCitation[];
+  tokenUsage: TokenUsage;
+  responseTime: number;
+  model: string;
+  metadata: {
+    retrievalCount: number;
+    knowledgeBaseIds: string[];
+  };
 }
 
 export interface ApiEnvelope<T> {

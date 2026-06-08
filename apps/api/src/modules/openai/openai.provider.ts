@@ -1,0 +1,140 @@
+import { Injectable, ServiceUnavailableException } from "@nestjs/common";
+import type {
+  AiProvider,
+  GenerateResponseInput,
+  GenerateResponseResult,
+} from "./interfaces/ai-provider.interface";
+import { OpenAiConfigService } from "./openai-config.service";
+
+interface ResponsesApiResponse {
+  id?: string;
+  model?: string;
+  output_text?: string;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    total_tokens?: number;
+  };
+  output?: Array<{
+    content?: Array<{ text?: string }>;
+  }>;
+}
+
+interface EmbeddingApiResponse {
+  data: Array<{ index: number; embedding: number[] }>;
+  model: string;
+}
+
+@Injectable()
+export class OpenAiProvider implements AiProvider {
+  constructor(private readonly openaiConfig: OpenAiConfigService) {}
+
+  async generateResponse(input: GenerateResponseInput): Promise<GenerateResponseResult> {
+    const model = this.openaiConfig.responseModel();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.openaiConfig.timeoutMs());
+
+    let response: Response;
+    try {
+      response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.openaiConfig.apiKey()}`,
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model,
+          instructions: input.instructions,
+          input: input.messages.map((message) => ({
+            role: message.role,
+            content: [{ type: "input_text", text: message.content }],
+          })),
+          user: input.user,
+        }),
+      });
+    } catch (error) {
+      throw new ServiceUnavailableException(readNetworkError(error));
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (!response.ok) {
+      throw new ServiceUnavailableException(readOpenAiStatusMessage(response.status));
+    }
+
+    const body = (await response.json()) as ResponsesApiResponse;
+    const content = body.output_text ?? extractOutputText(body);
+    if (!content) {
+      throw new ServiceUnavailableException("AI response was empty. Please try again.");
+    }
+
+    return {
+      content,
+      model: body.model ?? model,
+      tokenUsage: {
+        promptTokens: body.usage?.input_tokens ?? 0,
+        completionTokens: body.usage?.output_tokens ?? 0,
+        totalTokens: body.usage?.total_tokens ?? 0,
+      },
+      raw: { id: body.id },
+    };
+  }
+
+  async generateEmbedding(input: { texts: string[]; user?: string }) {
+    const model = this.openaiConfig.embeddingModel();
+    const dimensions = this.openaiConfig.embeddingDimensions();
+    const response = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.openaiConfig.apiKey()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        input: input.texts,
+        dimensions,
+        encoding_format: "float",
+        user: input.user,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new ServiceUnavailableException(readOpenAiStatusMessage(response.status));
+    }
+
+    const body = (await response.json()) as EmbeddingApiResponse;
+    const vectors = [...body.data].sort((a, b) => a.index - b.index).map((item) => item.embedding);
+    return { model: body.model || model, dimensions: vectors[0]?.length ?? dimensions, vectors };
+  }
+}
+
+function extractOutputText(body: ResponsesApiResponse): string | null {
+  const text = body.output
+    ?.flatMap((item) => item.content ?? [])
+    .map((content) => content.text)
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+  return text || null;
+}
+
+function readOpenAiStatusMessage(status: number): string {
+  if (status === 401 || status === 403) {
+    return "AI service credentials are not configured correctly.";
+  }
+  if (status === 429) {
+    return "AI service is temporarily rate limited. Please try again shortly.";
+  }
+  if (status >= 500) {
+    return "AI service is temporarily unavailable. Please try again.";
+  }
+  return "AI response generation failed. Please try again.";
+}
+
+function readNetworkError(error: unknown): string {
+  if (error instanceof Error && error.name === "AbortError") {
+    return "AI service timed out. Please try again.";
+  }
+  return "AI service is unreachable. Please try again.";
+}

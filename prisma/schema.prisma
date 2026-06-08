@@ -65,6 +65,46 @@ enum WebsiteSourceStatus {
   FAILED
 }
 
+enum FaqStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ConversationChannel {
+  WEB_CHAT
+  VOICE
+  SMS
+  WHATSAPP
+}
+
+enum ConversationStatus {
+  ACTIVE
+  CLOSED
+  ARCHIVED
+}
+
+enum SenderType {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum MessageType {
+  TEXT
+  SYSTEM_EVENT
+  TOOL_CALL
+  TOOL_RESULT
+}
+
+enum MemoryFactType {
+  USER_INFO
+  BUSINESS_INFO
+  APPOINTMENT
+  CONTACT
+  PREFERENCE
+  CUSTOM
+}
+
 model Organization {
   id        String             @id @default(uuid())
   name      String
@@ -75,16 +115,22 @@ model Organization {
   updatedAt DateTime           @updatedAt
   deletedAt DateTime?
 
-  members OrganizationMember[]
-  agents  Agent[]
-  knowledgeBases KnowledgeBase[]
-  documents Document[]
-  websiteSources WebsiteSource[]
-  websiteContents WebsiteContent[]
-  knowledgeChunks KnowledgeChunk[]
-  knowledgeEmbeddings KnowledgeEmbedding[]
-  invitations OrganizationInvitation[]
-  auditEvents AuditEvent[]
+  members              OrganizationMember[]
+  agents               Agent[]
+  knowledgeBases       KnowledgeBase[]
+  documents            Document[]
+  websiteSources       WebsiteSource[]
+  websiteContents      WebsiteContent[]
+  knowledgeChunks      KnowledgeChunk[]
+  knowledgeEmbeddings  KnowledgeEmbedding[]
+  faqEntries           FaqEntry[]
+  ragSearchEvents      RagSearchEvent[]
+  conversations        Conversation[]
+  messages             Message[]
+  conversationMemories ConversationMemory[]
+  memoryFacts          MemoryFact[]
+  invitations          OrganizationInvitation[]
+  auditEvents          AuditEvent[]
 
   @@index([slug])
   @@index([status])
@@ -102,12 +148,12 @@ model User {
   updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?
 
-  memberships OrganizationMember[]
-  refreshTokens RefreshToken[]
+  memberships         OrganizationMember[]
+  refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
-  sentInvitations OrganizationInvitation[] @relation("OrganizationInvitationInviter")
-  auditEvents AuditEvent[] @relation("AuditEventActor")
-  uploadedDocuments Document[] @relation("DocumentUploader")
+  sentInvitations     OrganizationInvitation[] @relation("OrganizationInvitationInviter")
+  auditEvents         AuditEvent[]             @relation("AuditEventActor")
+  uploadedDocuments   Document[]               @relation("DocumentUploader")
 
   @@index([email])
   @@index([status])
@@ -115,12 +161,12 @@ model User {
 }
 
 model RefreshToken {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   userId     String
   tokenHash  String
   expiresAt  DateTime
   deviceInfo String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
   revokedAt  DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -131,11 +177,11 @@ model RefreshToken {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
   tokenHash String
   expiresAt DateTime
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   usedAt    DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -195,7 +241,7 @@ model AuditEvent {
   createdAt      DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  actor       User?        @relation("AuditEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actor        User?        @relation("AuditEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
   @@index([actorUserId])
@@ -216,8 +262,10 @@ model Agent {
   updatedAt      DateTime    @updatedAt
   deletedAt      DateTime?
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  knowledgeBases KnowledgeBase[]
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBases  KnowledgeBase[]
+  ragSearchEvents RagSearchEvent[]
+  conversations   Conversation[]
 
   @@index([organizationId])
   @@index([status])
@@ -236,11 +284,13 @@ model KnowledgeBase {
   updatedAt      DateTime            @updatedAt
   deletedAt      DateTime?
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  agent        Agent?       @relation(fields: [agentId], references: [id], onDelete: SetNull)
-  documents    Document[]
-  websiteSources WebsiteSource[]
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent           Agent?           @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  documents       Document[]
+  websiteSources  WebsiteSource[]
   knowledgeChunks KnowledgeChunk[]
+  faqEntries      FaqEntry[]
+  ragSearchEvents RagSearchEvent[]
 
   @@index([organizationId])
   @@index([agentId])
@@ -263,8 +313,8 @@ model WebsiteSource {
   updatedAt       DateTime            @updatedAt
   deletedAt       DateTime?
 
-  organization  Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  knowledgeBase KnowledgeBase   @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase    @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
   content       WebsiteContent?
   chunks        KnowledgeChunk[]
 
@@ -316,9 +366,9 @@ model Document {
   updatedAt        DateTime         @updatedAt
   deletedAt        DateTime?
 
-  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
-  uploader      User?         @relation("DocumentUploader", fields: [uploadedBy], references: [id], onDelete: SetNull)
+  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase    @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  uploader      User?            @relation("DocumentUploader", fields: [uploadedBy], references: [id], onDelete: SetNull)
   chunks        KnowledgeChunk[]
 
   @@index([organizationId])
@@ -337,6 +387,7 @@ model KnowledgeChunk {
   knowledgeBaseId String
   documentId      String?
   websiteSourceId String?
+  faqEntryId      String?
   chunkIndex      Int
   chunkText       String   @db.Text
   tokenCount      Int
@@ -344,18 +395,21 @@ model KnowledgeChunk {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
-  document      Document?     @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  websiteSource WebsiteSource? @relation(fields: [websiteSourceId], references: [id], onDelete: Cascade)
+  organization  Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase       @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  document      Document?           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  websiteSource WebsiteSource?      @relation(fields: [websiteSourceId], references: [id], onDelete: Cascade)
+  faqEntry      FaqEntry?           @relation(fields: [faqEntryId], references: [id], onDelete: Cascade)
   embedding     KnowledgeEmbedding?
 
   @@unique([documentId, chunkIndex])
   @@unique([websiteSourceId, chunkIndex])
+  @@unique([faqEntryId, chunkIndex])
   @@index([organizationId])
   @@index([knowledgeBaseId])
   @@index([documentId])
   @@index([websiteSourceId])
+  @@index([faqEntryId])
   @@index([chunkIndex])
   @@index([createdAt])
   @@map("knowledge_chunks")
@@ -370,7 +424,7 @@ model KnowledgeEmbedding {
   dimensions      Int
   createdAt       DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   chunk        KnowledgeChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
@@ -378,4 +432,157 @@ model KnowledgeEmbedding {
   @@index([dimensions])
   @@index([createdAt])
   @@map("knowledge_embeddings")
+}
+
+model Conversation {
+  id             String              @id @default(uuid())
+  organizationId String
+  agentId        String
+  visitorId      String?
+  sessionId      String?
+  channel        ConversationChannel
+  status         ConversationStatus  @default(ACTIVE)
+  startedAt      DateTime            @default(now())
+  lastMessageAt  DateTime?
+  endedAt        DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  deletedAt      DateTime?
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent        Agent                @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  messages     Message[]
+  memories     ConversationMemory[]
+  memoryFacts  MemoryFact[]
+
+  @@index([organizationId])
+  @@index([agentId])
+  @@index([visitorId])
+  @@index([sessionId])
+  @@index([channel])
+  @@index([status])
+  @@index([startedAt])
+  @@index([lastMessageAt])
+  @@index([deletedAt])
+  @@map("conversations")
+}
+
+model ConversationMemory {
+  id             String   @id @default(uuid())
+  organizationId String
+  conversationId String
+  summary        String   @db.Text
+  messageCount   Int
+  tokenEstimate  Int
+  generatedAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([conversationId])
+  @@index([messageCount])
+  @@index([generatedAt])
+  @@map("conversation_memories")
+}
+
+model MemoryFact {
+  id             String         @id @default(uuid())
+  organizationId String
+  conversationId String
+  factType       MemoryFactType @default(CUSTOM)
+  factKey        String
+  factValue      String         @db.Text
+  confidence     Float          @default(0.7)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([conversationId])
+  @@index([factType])
+  @@index([factKey])
+  @@index([createdAt])
+  @@map("memory_facts")
+}
+
+model Message {
+  id             String      @id @default(uuid())
+  organizationId String
+  conversationId String
+  senderType     SenderType
+  content        String      @db.Text
+  messageType    MessageType @default(TEXT)
+  tokenCount     Int         @default(0)
+  metadata       Json        @default("{}")
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  deletedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([conversationId])
+  @@index([senderType])
+  @@index([messageType])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("messages")
+}
+
+model FaqEntry {
+  id              String    @id @default(uuid())
+  organizationId  String
+  knowledgeBaseId String
+  question        String
+  answer          String    @db.Text
+  status          FaqStatus @default(ACTIVE)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase    @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  chunks        KnowledgeChunk[]
+
+  @@index([organizationId])
+  @@index([knowledgeBaseId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("faq_entries")
+}
+
+model RagSearchEvent {
+  id                 String   @id @default(uuid())
+  organizationId     String
+  knowledgeBaseId    String?
+  agentId            String?
+  query              String
+  source             String
+  resultCount        Int
+  averageScore       Float
+  responseTimeMs     Int
+  failed             Boolean  @default(false)
+  usedDocumentChunks Int      @default(0)
+  usedWebsiteChunks  Int      @default(0)
+  usedFaqChunks      Int      @default(0)
+  createdAt          DateTime @default(now())
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase? @relation(fields: [knowledgeBaseId], references: [id], onDelete: SetNull)
+  agent         Agent?         @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([knowledgeBaseId])
+  @@index([agentId])
+  @@index([source])
+  @@index([failed])
+  @@index([createdAt])
+  @@map("rag_search_events")
 }

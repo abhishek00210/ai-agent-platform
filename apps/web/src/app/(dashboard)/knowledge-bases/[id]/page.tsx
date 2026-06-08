@@ -11,6 +11,7 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
+  Search,
   Trash2,
   UploadCloud,
 } from "lucide-react";
@@ -161,6 +162,12 @@ export default function KnowledgeBaseDetailsPage() {
               </Link>
             </Button>
             <Button asChild>
+              <Link href={`/knowledge-bases/${knowledgeBase.id}/search`}>
+                <Search className="h-4 w-4" aria-hidden="true" />
+                Search
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
               <Link href={`/knowledge-bases/${knowledgeBase.id}/edit`}>
                 <Pencil className="h-4 w-4" aria-hidden="true" />
                 Edit
@@ -214,9 +221,14 @@ export default function KnowledgeBaseDetailsPage() {
           <UploadCloud className="h-5 w-5 text-teal-700 dark:text-teal-300" aria-hidden="true" />
           <h2 className="mt-3 text-base font-semibold">Document ingestion foundation</h2>
           <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-            PDFs are stored as private objects now. Extraction, embeddings, and retrieval will
-            attach to these records in later phases.
+            PDFs, websites, and FAQs can now be embedded and searched through the RAG engine.
           </p>
+          <Button className="mt-6" variant="outline" asChild>
+            <Link href={`/faqs/create?knowledgeBaseId=${knowledgeBase.id}`}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Add FAQ
+            </Link>
+          </Button>
         </div>
       </section>
 

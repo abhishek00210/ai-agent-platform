@@ -7,6 +7,7 @@ import {
   BookOpen,
   CalendarDays,
   Copy,
+  MessageCircle,
   MessageSquare,
   Pencil,
   PhoneCall,
@@ -16,6 +17,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@ai-agent-platform/ui";
+import { AgentKnowledgeTestPanel } from "@/components/agents/agent-knowledge-test-panel";
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageLoader } from "@/components/layout/page-loader";
@@ -96,6 +98,12 @@ export default function AgentDetailsPage() {
               Duplicate
             </Button>
             <Button asChild>
+              <Link href={`/agents/${agent.id}/chat-test`}>
+                <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                Chat Test
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
               <Link href={`/agents/${agent.id}/edit`}>
                 <Pencil className="h-4 w-4" aria-hidden="true" />
                 Edit
@@ -147,6 +155,8 @@ export default function AgentDetailsPage() {
           );
         })}
       </section>
+
+      <AgentKnowledgeTestPanel agentId={agent.id} />
 
       <EmptyState
         icon={BookOpen}
