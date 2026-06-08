@@ -72,7 +72,7 @@ export class MemoryGenerationService {
   ) {
     return this.repository.createAuditEvent({
       organizationId: input.organizationId,
-      actorUserId: input.actorUserId,
+      actorUserId: input.actorUserId === "public-widget" ? undefined : input.actorUserId,
       action,
       entityType: "ConversationMemory",
       entityId,

@@ -1,0 +1,76 @@
+import { MediaStreamService } from "./media-stream.service";
+
+describe("MediaStreamService", () => {
+  const lifecycle = {
+    start: jest.fn(),
+    stop: jest.fn(),
+    disconnect: jest.fn(),
+  };
+  const audioPackets = {
+    process: jest.fn(),
+  };
+  const service = new MediaStreamService(lifecycle as never, audioPackets as never);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("tracks connected events", async () => {
+    await expect(service.handleEvent("conn-1", { event: "connected" })).resolves.toEqual({
+      ok: true,
+    });
+  });
+
+  it("starts a stream session from Twilio start events", async () => {
+    lifecycle.start.mockResolvedValue({ id: "session-1" });
+
+    await service.handleEvent("conn-1", {
+      event: "start",
+      start: {
+        streamSid: "MZ123",
+        callSid: "CA123",
+        tracks: ["inbound"],
+        mediaFormat: { encoding: "audio/x-mulaw", sampleRate: 8000, channels: 1 },
+      },
+    });
+
+    expect(lifecycle.start).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "start",
+        start: expect.objectContaining({ streamSid: "MZ123", callSid: "CA123" }),
+      }),
+    );
+  });
+
+  it("processes media packets", async () => {
+    audioPackets.process.mockResolvedValue({ packetCount: 1 });
+
+    await service.handleEvent("conn-1", {
+      event: "media",
+      streamSid: "MZ123",
+      media: {
+        payload: "base64-audio",
+        track: "inbound",
+        timestamp: "10",
+      },
+    });
+
+    expect(audioPackets.process).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "media", streamSid: "MZ123" }),
+    );
+  });
+
+  it("closes stream sessions on stop events", async () => {
+    lifecycle.stop.mockResolvedValue({ id: "session-1" });
+
+    await service.handleEvent("conn-1", {
+      event: "stop",
+      streamSid: "MZ123",
+      stop: { callSid: "CA123" },
+    });
+
+    expect(lifecycle.stop).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "stop", streamSid: "MZ123" }),
+    );
+  });
+});

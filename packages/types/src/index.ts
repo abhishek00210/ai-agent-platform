@@ -10,6 +10,7 @@ export type WebsiteSourceStatus = "PENDING" | "SCRAPING" | "COMPLETED" | "FAILED
 export type FaqStatus = "ACTIVE" | "INACTIVE";
 export type ConversationChannel = "WEB_CHAT" | "VOICE" | "SMS" | "WHATSAPP";
 export type ConversationStatus = "ACTIVE" | "CLOSED" | "ARCHIVED";
+export type ConversationSource = "INTERNAL" | "WIDGET";
 export type SenderType = "USER" | "ASSISTANT" | "SYSTEM";
 export type MessageType = "TEXT" | "SYSTEM_EVENT" | "TOOL_CALL" | "TOOL_RESULT";
 export type MemoryFactType =
@@ -19,6 +20,14 @@ export type MemoryFactType =
   | "CONTACT"
   | "PREFERENCE"
   | "CUSTOM";
+export type WidgetStatus = "ACTIVE" | "INACTIVE";
+export type WidgetPosition = "BOTTOM_RIGHT" | "BOTTOM_LEFT";
+export type PhoneNumberStatus = "ACTIVE" | "INACTIVE" | "UNASSIGNED";
+export type PhoneNumberProvider = "TWILIO";
+export type TwilioConnectionStatus = "CONNECTED" | "DISCONNECTED";
+export type CallDirection = "INBOUND" | "OUTBOUND";
+export type CallStatus = "RINGING" | "ROUTING" | "CONNECTED" | "COMPLETED" | "FAILED" | "MISSED";
+export type CallSessionStatus = "CONNECTING" | "CONNECTED" | "DISCONNECTED" | "FAILED";
 
 export interface OrganizationSummary {
   id: string;
@@ -122,6 +131,231 @@ export type UpdateAgentInput = Partial<CreateAgentInput>;
 export interface AgentOption {
   label: string;
   value: string;
+}
+
+export interface WidgetSummary {
+  id: string;
+  organizationId: string;
+  agentId: string;
+  agent: {
+    id: string;
+    name: string;
+    status: AgentStatus;
+  };
+  name: string;
+  status: WidgetStatus;
+  publicKey: string;
+  primaryColor: string;
+  position: WidgetPosition;
+  welcomeMessage: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type WidgetDetails = WidgetSummary;
+
+export interface WidgetListResponse {
+  total: number;
+  data: WidgetSummary[];
+}
+
+export interface WidgetListQuery {
+  search?: string;
+}
+
+export interface CreateWidgetInput {
+  name: string;
+  agentId: string;
+  status: WidgetStatus;
+  primaryColor: string;
+  position: WidgetPosition;
+  welcomeMessage: string;
+}
+
+export type UpdateWidgetInput = Partial<CreateWidgetInput>;
+
+export interface PhoneNumberCapabilities {
+  voice?: boolean;
+  sms?: boolean;
+  mms?: boolean;
+}
+
+export interface PhoneNumberSummary {
+  id: string;
+  organizationId: string;
+  agentId: string | null;
+  agent: {
+    id: string;
+    name: string;
+    status: AgentStatus;
+    language: string;
+  } | null;
+  phoneNumber: string;
+  friendlyName: string | null;
+  country: string | null;
+  capabilities: PhoneNumberCapabilities;
+  provider: PhoneNumberProvider;
+  status: PhoneNumberStatus;
+  twilioSid: string | null;
+  voiceWebhookUrl: string | null;
+  smsWebhookUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PhoneNumberDetails = PhoneNumberSummary;
+
+export interface PhoneNumberListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  data: PhoneNumberSummary[];
+}
+
+export interface PhoneNumberListQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: PhoneNumberStatus;
+  agentId?: string;
+}
+
+export interface AssignPhoneNumberAgentInput {
+  agentId: string;
+}
+
+export interface PhoneNumberSyncResponse {
+  total: number;
+  data: PhoneNumberSummary[];
+}
+
+export interface TwilioConnectionResponse {
+  id?: string;
+  organizationId?: string;
+  connected: boolean;
+  configured: boolean;
+  accountSid: string | null;
+  friendlyName: string | null;
+  status: TwilioConnectionStatus;
+  createdAt?: string;
+  updatedAt: string | null;
+}
+
+export interface CallSummary {
+  id: string;
+  organizationId: string;
+  agentId: string;
+  phoneNumberId: string;
+  agent: {
+    id: string;
+    name: string;
+    status: AgentStatus;
+  };
+  phoneNumber: {
+    id: string;
+    phoneNumber: string;
+    friendlyName: string | null;
+  };
+  twilioCallSid: string;
+  callerNumber: string;
+  calledNumber: string;
+  direction: CallDirection;
+  status: CallStatus;
+  startedAt: string;
+  endedAt: string | null;
+  durationSeconds: number | null;
+  metadata: unknown;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CallDetails = CallSummary;
+
+export interface CallSessionSummary {
+  id: string;
+  callId: string;
+  organizationId: string;
+  twilioCallSid: string;
+  streamSid: string | null;
+  status: CallSessionStatus;
+  connectedAt: string | null;
+  disconnectedAt: string | null;
+  packetCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CallListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  data: CallSummary[];
+}
+
+export interface CallListQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: CallStatus;
+  agentId?: string;
+  phoneNumberId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface VoiceDashboardStats {
+  totalNumbers: number;
+  assignedNumbers: number;
+  unassignedNumbers: number;
+  activeNumbers: number;
+  totalCalls: number;
+  todayCalls: number;
+  failedCalls: number;
+  recentCalls: CallSummary[];
+  totalStreams: number;
+  connectedStreams: number;
+  disconnectedStreams: number;
+  failedStreams: number;
+  packetsProcessed: number;
+  callDurationSeconds: number;
+  bookings: number;
+  leads: number;
+}
+
+export interface PublicWidgetInitInput {
+  widgetId: string;
+  publicKey: string;
+}
+
+export interface PublicWidgetInitResponse {
+  widget: {
+    id: string;
+    name: string;
+    primaryColor: string;
+    position: WidgetPosition;
+    welcomeMessage: string;
+  };
+  agent: {
+    id: string;
+    name: string;
+    status: AgentStatus;
+  };
+}
+
+export interface PublicWidgetConversationInput extends PublicWidgetInitInput {
+  visitorId?: string;
+}
+
+export interface PublicWidgetConversationResponse {
+  conversationId: string;
+  visitorId: string;
+  conversation: ConversationSummary;
+}
+
+export interface PublicWidgetChatInput extends PublicWidgetInitInput {
+  conversationId: string;
+  visitorId: string;
+  message: string;
 }
 
 export interface KnowledgeBaseSummary {
@@ -497,6 +731,7 @@ export interface ConversationSummary {
   sessionId: string | null;
   channel: ConversationChannel;
   status: ConversationStatus;
+  source: ConversationSource;
   messageCount: number;
   startedAt: string;
   lastMessageAt: string | null;
@@ -619,12 +854,15 @@ export interface SendChatMessageResponse {
   userMessage: MessageSummary;
   assistantMessage: MessageSummary;
   sources: RagSourceCitation[];
+  retrievedChunks: RagRetrievedChunk[];
   tokenUsage: TokenUsage;
   responseTime: number;
   model: string;
   metadata: {
     retrievalCount: number;
     knowledgeBaseIds: string[];
+    memoryUsed: boolean;
+    memoryFactCount: number;
   };
 }
 

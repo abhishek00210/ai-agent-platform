@@ -60,6 +60,7 @@ describe("ResponseGenerationService", () => {
         senderType: "ASSISTANT",
         metadata: expect.objectContaining({
           model: "gpt-5.2",
+          source: "CHAT_TEST",
           retrievalCount: 1,
           tokenUsage: { promptTokens: 10, completionTokens: 6, totalTokens: 16 },
         }),
@@ -74,7 +75,54 @@ describe("ResponseGenerationService", () => {
     );
     expect(deps.memory.maybeEnqueueRefresh).toHaveBeenCalledWith(context, "conversation-1");
     expect(result.sources).toEqual([sourceCitation]);
+    expect(result.retrievedChunks).toEqual([retrievedChunk]);
+    expect(result.metadata.memoryUsed).toBe(true);
+    expect(result.metadata.memoryFactCount).toBe(1);
     expect(result.tokenUsage.totalTokens).toBe(16);
+  });
+
+  it("tags widget-originated user and assistant messages", async () => {
+    const deps = createDependencies();
+    deps.contextService.load.mockResolvedValue(conversationFixture({ knowledgeBases: [] }));
+    deps.citations.build.mockReturnValue([]);
+    deps.contextBuilder.build.mockReturnValue("");
+    deps.memory.getPromptMemory.mockResolvedValue({ summary: null, facts: [] });
+    deps.promptAssembly.instructions.mockReturnValue("Instructions");
+    deps.promptAssembly.messages.mockReturnValue([{ role: "user", content: "Hello" }]);
+    deps.provider.generateResponse.mockResolvedValue({
+      content: "Hello back.",
+      model: "gpt-5.2",
+      tokenUsage: { promptTokens: 4, completionTokens: 3, totalTokens: 7 },
+      raw: { id: "response-widget" },
+    });
+    deps.messages.create
+      .mockResolvedValueOnce(messageFixture("message-user", "USER", "Hello", 2, {}))
+      .mockResolvedValueOnce(
+        messageFixture("message-assistant", "ASSISTANT", "Hello back.", 7, {}),
+      );
+    const service = createService(deps);
+
+    await service.send(context, {
+      agentId: "agent-1",
+      conversationId: "conversation-1",
+      message: "Hello",
+      source: "WIDGET",
+    });
+
+    expect(deps.messages.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        senderType: "USER",
+        metadata: { source: "WIDGET" },
+      }),
+    );
+    expect(deps.messages.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        senderType: "ASSISTANT",
+        metadata: expect.objectContaining({ source: "WIDGET" }),
+      }),
+    );
   });
 
   it("generates a response using prompt and history when the agent has no knowledge bases", async () => {
@@ -123,6 +171,7 @@ describe("ResponseGenerationService", () => {
       }),
     );
     expect(result.sources).toEqual([]);
+    expect(result.retrievedChunks).toEqual([]);
     expect(result.metadata.retrievalCount).toBe(0);
   });
 
@@ -165,6 +214,7 @@ describe("ResponseGenerationService", () => {
     );
     expect(deps.provider.generateResponse).toHaveBeenCalled();
     expect(result.sources).toEqual([]);
+    expect(result.retrievedChunks).toEqual([]);
     expect(result.metadata.retrievalCount).toBe(0);
   });
 

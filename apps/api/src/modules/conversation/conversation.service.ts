@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { Injectable, NotFoundException } from "@nestjs/common";
-import type { ConversationChannel, ConversationStatus, Prisma } from "../../../generated/prisma";
+import type {
+  ConversationChannel,
+  ConversationSource,
+  ConversationStatus,
+  Prisma,
+} from "../../../generated/prisma";
 import type { TenantContext } from "../tenant/tenant.service";
 import type { CreateConversationDto, ListConversationsQueryDto } from "./dto/conversation.dto";
 import { MessageRepository } from "./repositories/message.repository";
@@ -138,6 +143,7 @@ export class ConversationService {
     sessionId: string | null;
     channel: ConversationChannel;
     status: ConversationStatus;
+    source: ConversationSource;
     startedAt: Date;
     lastMessageAt: Date | null;
     endedAt: Date | null;
@@ -155,6 +161,7 @@ export class ConversationService {
       sessionId: conversation.sessionId,
       channel: conversation.channel,
       status: conversation.status,
+      source: conversation.source,
       messageCount: conversation._count.messages,
       startedAt: conversation.startedAt,
       lastMessageAt: conversation.lastMessageAt,

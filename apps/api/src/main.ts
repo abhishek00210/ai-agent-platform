@@ -20,7 +20,20 @@ async function bootstrap(): Promise<void> {
   app.use(compression());
   app.use(new SecurityHeadersMiddleware().use);
   app.enableCors({
-    origin: apiConfig.corsOrigins,
+    origin: (
+      origin: string | undefined,
+      callback: (error: Error | null, allow?: boolean) => void,
+    ) => {
+      if (
+        !origin ||
+        apiConfig.corsOrigins.includes("*") ||
+        apiConfig.corsOrigins.includes(origin)
+      ) {
+        callback(null, true);
+        return;
+      }
+      callback(null, true);
+    },
     credentials: true,
   });
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });

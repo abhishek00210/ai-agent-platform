@@ -21,6 +21,7 @@ import { TwilioModule } from "./modules/twilio/twilio.module";
 import { UserModule } from "./modules/user/user.module";
 import { VoiceModule } from "./modules/voice/voice.module";
 import { WebsiteScraperModule } from "./modules/website-scraper/website-scraper.module";
+import { WidgetModule } from "./modules/widget/widget.module";
 import { envConfig, validateEnv } from "./config/env.schema";
 import { DatabaseModule } from "./database/database.module";
 import { RedisModule } from "./redis/redis.module";
@@ -68,6 +69,7 @@ import { SecurityModule } from "./security/security.module";
     BillingModule,
     StorageModule,
     AnalyticsModule,
+    WidgetModule,
     HealthModule,
   ],
 })

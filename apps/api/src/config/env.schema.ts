@@ -14,7 +14,10 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default("30d"),
   TWILIO_ACCOUNT_SID: z.string().optional().default(""),
   TWILIO_AUTH_TOKEN: z.string().optional().default(""),
+  TWILIO_API_KEY: z.string().optional().default(""),
+  TWILIO_API_SECRET: z.string().optional().default(""),
   TWILIO_PHONE_NUMBER: z.string().optional().default(""),
+  VOICE_WEBHOOK_BASE_URL: z.string().url().optional().default(""),
   OPENAI_API_KEY: z.string().optional().default(""),
   OPENAI_MODEL: z.string().default("gpt-5.2"),
   OPENAI_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
@@ -73,7 +76,12 @@ export const envConfig = () => {
     twilio: {
       accountSid: env.TWILIO_ACCOUNT_SID,
       authToken: env.TWILIO_AUTH_TOKEN,
+      apiKey: env.TWILIO_API_KEY,
+      apiSecret: env.TWILIO_API_SECRET,
       phoneNumber: env.TWILIO_PHONE_NUMBER,
+    },
+    voice: {
+      webhookBaseUrl: env.VOICE_WEBHOOK_BASE_URL || env.APP_URL,
     },
     openai: {
       apiKey: env.OPENAI_API_KEY,

@@ -1,0 +1,116 @@
+import { Injectable, NotFoundException } from "@nestjs/common";
+import type { Prisma } from "../../../generated/prisma";
+import type { TenantContext } from "../tenant/tenant.service";
+import { CallSessionRepository } from "./repositories/call-session.repository";
+
+@Injectable()
+export class CallSessionService {
+  constructor(private readonly sessions: CallSessionRepository) {}
+
+  async listForCall(context: TenantContext, callId: string) {
+    const sessions = await this.sessions.findByCallId(context.organizationId, callId);
+    return sessions.map(toCallSessionResponse);
+  }
+
+  async start(input: {
+    streamSid: string;
+    twilioCallSid: string;
+    metadata?: Prisma.InputJsonValue;
+  }) {
+    const call = await this.sessions.findCallByTwilioSid(input.twilioCallSid);
+    if (!call) {
+      throw new NotFoundException("Call not found for media stream.");
+    }
+
+    const session = await this.sessions.upsertStarted({
+      callId: call.id,
+      organizationId: call.organizationId,
+      twilioCallSid: call.twilioCallSid,
+      streamSid: input.streamSid,
+    });
+
+    await Promise.all([
+      this.audit(call.organizationId, "media_stream.started", session.id, {
+        streamSid: input.streamSid,
+        twilioCallSid: input.twilioCallSid,
+      }),
+      this.audit(call.organizationId, "call_session.created", session.id, input.metadata),
+    ]);
+
+    return session;
+  }
+
+  async recordPacket(streamSid: string) {
+    const session = await this.sessions.incrementPacket(streamSid);
+    return session;
+  }
+
+  async stop(streamSid: string) {
+    const session = await this.sessions.updateStatus(streamSid, "DISCONNECTED");
+    await this.audit(session.organizationId, "media_stream.stopped", session.id, {
+      streamSid,
+      packetCount: session.packetCount,
+    });
+    await this.audit(session.organizationId, "call_session.closed", session.id, {
+      streamSid,
+      status: "DISCONNECTED",
+    });
+    return session;
+  }
+
+  async fail(streamSid: string, reason: string) {
+    const session = await this.sessions.updateStatus(streamSid, "FAILED");
+    await this.audit(session.organizationId, "media_stream.failed", session.id, {
+      streamSid,
+      reason,
+    });
+    return session;
+  }
+
+  async stats(context: TenantContext) {
+    return this.sessions.stats(context.organizationId);
+  }
+
+  private audit(
+    organizationId: string,
+    action: string,
+    entityId?: string,
+    metadata?: Prisma.InputJsonValue,
+  ) {
+    return this.sessions.createAuditEvent({
+      organizationId,
+      action,
+      entityType: "CallSession",
+      entityId,
+      metadata,
+    });
+  }
+}
+
+export function toCallSessionResponse(session: {
+  id: string;
+  callId: string;
+  organizationId: string;
+  twilioCallSid: string;
+  streamSid: string | null;
+  status: string;
+  connectedAt: Date | null;
+  disconnectedAt: Date | null;
+  packetCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: session.id,
+    callId: session.callId,
+    organizationId: session.organizationId,
+    twilioCallSid: session.twilioCallSid,
+    streamSid: session.streamSid,
+    status: session.status,
+    connectedAt: session.connectedAt,
+    disconnectedAt: session.disconnectedAt,
+    packetCount: session.packetCount,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+  };
+}

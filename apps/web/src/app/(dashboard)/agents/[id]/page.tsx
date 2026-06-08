@@ -98,9 +98,9 @@ export default function AgentDetailsPage() {
               Duplicate
             </Button>
             <Button asChild>
-              <Link href={`/agents/${agent.id}/chat-test`}>
+              <Link href={`/agents/${agent.id}/test`}>
                 <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                Chat Test
+                Test Agent
               </Link>
             </Button>
             <Button variant="outline" asChild>

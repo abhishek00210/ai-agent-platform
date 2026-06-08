@@ -3,11 +3,17 @@ import type {
   AgentDetails,
   AgentListQuery,
   AgentListResponse,
+  AssignPhoneNumberAgentInput,
+  CallDetails,
+  CallListQuery,
+  CallListResponse,
+  CallSessionSummary,
   CreateAgentInput,
   CreateConversationInput,
   CreateDocumentInput,
   CreateFaqInput,
   CreateKnowledgeBaseInput,
+  CreateWidgetInput,
   CreateWebsiteSourceInput,
   DocumentDetails,
   DocumentDownloadAccess,
@@ -36,6 +42,10 @@ import type {
   LoginInput,
   MessageListQuery,
   MessageListResponse,
+  PhoneNumberDetails,
+  PhoneNumberListQuery,
+  PhoneNumberListResponse,
+  PhoneNumberSyncResponse,
   OrganizationInvitationSummary,
   OrganizationMemberSummary,
   RegisterInput,
@@ -54,6 +64,12 @@ import type {
   UpdateKnowledgeBaseInput,
   UpdateMemberRoleInput,
   UpdateOrganizationInput,
+  UpdateWidgetInput,
+  TwilioConnectionResponse,
+  VoiceDashboardStats,
+  WidgetDetails,
+  WidgetListQuery,
+  WidgetListResponse,
   WebsiteSourceDetails,
   WebsiteSourceListQuery,
   WebsiteSourceListResponse,
@@ -488,6 +504,102 @@ export class ApiClient {
 
   async ragAnalytics(knowledgeBaseId: string): Promise<RagAnalytics> {
     return this.request<RagAnalytics>(`/rag/analytics/${knowledgeBaseId}`);
+  }
+
+  async voiceDashboard(): Promise<VoiceDashboardStats> {
+    return this.request<VoiceDashboardStats>("/voice/dashboard");
+  }
+
+  async twilioStatus(): Promise<TwilioConnectionResponse> {
+    return this.request<TwilioConnectionResponse>("/voice/twilio/status");
+  }
+
+  async verifyTwilio(): Promise<TwilioConnectionResponse> {
+    return this.request<TwilioConnectionResponse>("/voice/twilio/verify", {
+      method: "POST",
+    });
+  }
+
+  async phoneNumbers(query: PhoneNumberListQuery = {}): Promise<PhoneNumberListResponse> {
+    return this.request<PhoneNumberListResponse>(`/voice/phone-numbers${toQuerySuffix(query)}`);
+  }
+
+  async syncPhoneNumbers(): Promise<PhoneNumberSyncResponse> {
+    return this.request<PhoneNumberSyncResponse>("/voice/phone-numbers/sync", {
+      method: "POST",
+    });
+  }
+
+  async phoneNumber(phoneNumberId: string): Promise<PhoneNumberDetails> {
+    return this.request<PhoneNumberDetails>(`/voice/phone-numbers/${phoneNumberId}`);
+  }
+
+  async assignPhoneNumberAgent(
+    phoneNumberId: string,
+    input: AssignPhoneNumberAgentInput,
+  ): Promise<PhoneNumberDetails> {
+    return this.request<PhoneNumberDetails>(`/voice/phone-numbers/${phoneNumberId}/assign-agent`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async unassignPhoneNumber(phoneNumberId: string): Promise<PhoneNumberDetails> {
+    return this.request<PhoneNumberDetails>(`/voice/phone-numbers/${phoneNumberId}/unassign`, {
+      method: "POST",
+    });
+  }
+
+  async enablePhoneNumber(phoneNumberId: string): Promise<PhoneNumberDetails> {
+    return this.request<PhoneNumberDetails>(`/voice/phone-numbers/${phoneNumberId}/enable`, {
+      method: "POST",
+    });
+  }
+
+  async disablePhoneNumber(phoneNumberId: string): Promise<PhoneNumberDetails> {
+    return this.request<PhoneNumberDetails>(`/voice/phone-numbers/${phoneNumberId}/disable`, {
+      method: "POST",
+    });
+  }
+
+  async calls(query: CallListQuery = {}): Promise<CallListResponse> {
+    return this.request<CallListResponse>(`/voice/calls${toQuerySuffix(query)}`);
+  }
+
+  async call(callId: string): Promise<CallDetails> {
+    return this.request<CallDetails>(`/voice/calls/${callId}`);
+  }
+
+  async callSessions(callId: string): Promise<CallSessionSummary[]> {
+    return this.request<CallSessionSummary[]>(`/voice/calls/${callId}/sessions`);
+  }
+
+  async widgets(query: WidgetListQuery = {}): Promise<WidgetListResponse> {
+    return this.request<WidgetListResponse>(`/widgets${toQuerySuffix(query)}`);
+  }
+
+  async createWidget(input: CreateWidgetInput): Promise<WidgetDetails> {
+    return this.request<WidgetDetails>("/widgets", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async widget(widgetId: string): Promise<WidgetDetails> {
+    return this.request<WidgetDetails>(`/widgets/${widgetId}`);
+  }
+
+  async updateWidget(widgetId: string, input: UpdateWidgetInput): Promise<WidgetDetails> {
+    return this.request<WidgetDetails>(`/widgets/${widgetId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async deleteWidget(widgetId: string): Promise<{ success: true }> {
+    return this.request<{ success: true }>(`/widgets/${widgetId}`, {
+      method: "DELETE",
+    });
   }
 
   async request<T>(path: string, init: RequestInit = {}): Promise<T> {

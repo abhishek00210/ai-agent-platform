@@ -3,11 +3,17 @@ import type {
   AgentDetails,
   AgentListQuery,
   AgentListResponse,
+  CallDetails,
+  CallListQuery,
+  CallListResponse,
+  CallSessionSummary,
   CreateAgentInput,
   CreateConversationInput,
   CreateDocumentInput,
   CreateFaqInput,
   CreateKnowledgeBaseInput,
+  CreateWidgetInput,
+  AssignPhoneNumberAgentInput,
   CreateWebsiteSourceInput,
   CurrentOrganization,
   ConversationAnalytics,
@@ -35,6 +41,10 @@ import type {
   LoginInput,
   MessageListQuery,
   MessageListResponse,
+  PhoneNumberDetails,
+  PhoneNumberListQuery,
+  PhoneNumberListResponse,
+  PhoneNumberSyncResponse,
   OrganizationInvitationSummary,
   OrganizationMemberSummary,
   RegisterInput,
@@ -53,6 +63,12 @@ import type {
   UpdateKnowledgeBaseInput,
   UpdateMemberRoleInput,
   UpdateOrganizationInput,
+  UpdateWidgetInput,
+  TwilioConnectionResponse,
+  VoiceDashboardStats,
+  WidgetDetails,
+  WidgetListQuery,
+  WidgetListResponse,
   WebsiteSourceDetails,
   WebsiteSourceListQuery,
   WebsiteSourceListResponse,
@@ -411,6 +427,81 @@ export const authApi = {
   },
   ragAnalytics(knowledgeBaseId: string) {
     return apiRequest<RagAnalytics>(`/rag/analytics/${knowledgeBaseId}`);
+  },
+  voiceDashboard() {
+    return apiRequest<VoiceDashboardStats>("/voice/dashboard");
+  },
+  twilioStatus() {
+    return apiRequest<TwilioConnectionResponse>("/voice/twilio/status");
+  },
+  verifyTwilio() {
+    return apiRequest<TwilioConnectionResponse>("/voice/twilio/verify", {
+      method: "POST",
+    });
+  },
+  phoneNumbers(query: PhoneNumberListQuery = {}) {
+    return apiRequest<PhoneNumberListResponse>(`/voice/phone-numbers${toQuerySuffix(query)}`);
+  },
+  syncPhoneNumbers() {
+    return apiRequest<PhoneNumberSyncResponse>("/voice/phone-numbers/sync", {
+      method: "POST",
+    });
+  },
+  phoneNumber(phoneNumberId: string) {
+    return apiRequest<PhoneNumberDetails>(`/voice/phone-numbers/${phoneNumberId}`);
+  },
+  assignPhoneNumberAgent(phoneNumberId: string, input: AssignPhoneNumberAgentInput) {
+    return apiRequest<PhoneNumberDetails>(`/voice/phone-numbers/${phoneNumberId}/assign-agent`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  unassignPhoneNumber(phoneNumberId: string) {
+    return apiRequest<PhoneNumberDetails>(`/voice/phone-numbers/${phoneNumberId}/unassign`, {
+      method: "POST",
+    });
+  },
+  enablePhoneNumber(phoneNumberId: string) {
+    return apiRequest<PhoneNumberDetails>(`/voice/phone-numbers/${phoneNumberId}/enable`, {
+      method: "POST",
+    });
+  },
+  disablePhoneNumber(phoneNumberId: string) {
+    return apiRequest<PhoneNumberDetails>(`/voice/phone-numbers/${phoneNumberId}/disable`, {
+      method: "POST",
+    });
+  },
+  calls(query: CallListQuery = {}) {
+    return apiRequest<CallListResponse>(`/voice/calls${toQuerySuffix(query)}`);
+  },
+  call(callId: string) {
+    return apiRequest<CallDetails>(`/voice/calls/${callId}`);
+  },
+  callSessions(callId: string) {
+    return apiRequest<CallSessionSummary[]>(`/voice/calls/${callId}/sessions`);
+  },
+  widgets(query: WidgetListQuery = {}) {
+    return apiRequest<WidgetListResponse>(`/widgets${toQuerySuffix(query)}`);
+  },
+  createWidget(input: CreateWidgetInput) {
+    return apiRequest<WidgetDetails>("/widgets", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  widget(widgetId: string) {
+    return apiRequest<WidgetDetails>(`/widgets/${widgetId}`);
+  },
+  updateWidget(widgetId: string, input: UpdateWidgetInput) {
+    return apiRequest<WidgetDetails>(`/widgets/${widgetId}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+  deleteWidget(widgetId: string) {
+    return apiRequest<{ success: true }>(`/widgets/${widgetId}`, {
+      method: "DELETE",
+    });
   },
 };
 

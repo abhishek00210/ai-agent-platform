@@ -83,6 +83,11 @@ enum ConversationStatus {
   ARCHIVED
 }
 
+enum ConversationSource {
+  INTERNAL
+  WIDGET
+}
+
 enum SenderType {
   USER
   ASSISTANT
@@ -103,6 +108,52 @@ enum MemoryFactType {
   CONTACT
   PREFERENCE
   CUSTOM
+}
+
+enum WidgetStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum WidgetPosition {
+  BOTTOM_RIGHT
+  BOTTOM_LEFT
+}
+
+enum PhoneNumberStatus {
+  ACTIVE
+  INACTIVE
+  UNASSIGNED
+}
+
+enum PhoneNumberProvider {
+  TWILIO
+}
+
+enum TwilioConnectionStatus {
+  CONNECTED
+  DISCONNECTED
+}
+
+enum CallDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum CallStatus {
+  RINGING
+  ROUTING
+  CONNECTED
+  COMPLETED
+  FAILED
+  MISSED
+}
+
+enum CallSessionStatus {
+  CONNECTING
+  CONNECTED
+  DISCONNECTED
+  FAILED
 }
 
 model Organization {
@@ -129,6 +180,12 @@ model Organization {
   messages             Message[]
   conversationMemories ConversationMemory[]
   memoryFacts          MemoryFact[]
+  widgets              Widget[]
+  widgetVisitors       WidgetVisitor[]
+  phoneNumbers         PhoneNumber[]
+  twilioConnections    TwilioConnection[]
+  calls                Call[]
+  callSessions         CallSession[]
   invitations          OrganizationInvitation[]
   auditEvents          AuditEvent[]
 
@@ -266,11 +323,166 @@ model Agent {
   knowledgeBases  KnowledgeBase[]
   ragSearchEvents RagSearchEvent[]
   conversations   Conversation[]
+  widgets         Widget[]
+  phoneNumbers    PhoneNumber[]
+  calls           Call[]
 
   @@index([organizationId])
   @@index([status])
   @@index([deletedAt])
   @@map("agents")
+}
+
+model PhoneNumber {
+  id              String              @id @default(uuid())
+  organizationId  String
+  agentId         String?
+  phoneNumber     String              @unique
+  friendlyName    String?
+  country         String?
+  capabilities    Json                @default("{}")
+  provider        PhoneNumberProvider @default(TWILIO)
+  status          PhoneNumberStatus   @default(UNASSIGNED)
+  twilioSid       String?
+  voiceWebhookUrl String?
+  smsWebhookUrl   String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent        Agent?       @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  calls        Call[]
+
+  @@index([organizationId])
+  @@index([agentId])
+  @@index([phoneNumber])
+  @@index([status])
+  @@index([provider])
+  @@index([twilioSid])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("phone_numbers")
+}
+
+model Call {
+  id              String        @id @default(uuid())
+  organizationId  String
+  agentId         String
+  phoneNumberId   String
+  twilioCallSid   String        @unique
+  callerNumber    String
+  calledNumber    String
+  direction       CallDirection
+  status          CallStatus    @default(RINGING)
+  startedAt       DateTime      @default(now())
+  endedAt         DateTime?
+  durationSeconds Int?
+  metadata        Json          @default("{}")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent        Agent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  phoneNumber  PhoneNumber   @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
+  sessions     CallSession[]
+
+  @@index([organizationId])
+  @@index([phoneNumberId])
+  @@index([agentId])
+  @@index([twilioCallSid])
+  @@index([status])
+  @@index([startedAt])
+  @@map("calls")
+}
+
+model CallSession {
+  id             String            @id @default(uuid())
+  callId         String
+  organizationId String
+  twilioCallSid  String
+  streamSid      String?           @unique
+  status         CallSessionStatus @default(CONNECTING)
+  connectedAt    DateTime?
+  disconnectedAt DateTime?
+  packetCount    Int               @default(0)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  call         Call         @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([callId])
+  @@index([twilioCallSid])
+  @@index([streamSid])
+  @@index([status])
+  @@map("call_sessions")
+}
+
+model TwilioConnection {
+  id             String                 @id @default(uuid())
+  organizationId String
+  accountSid     String
+  friendlyName   String?
+  status         TwilioConnectionStatus @default(CONNECTED)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  deletedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, accountSid])
+  @@index([organizationId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("twilio_connections")
+}
+
+model Widget {
+  id             String         @id @default(uuid())
+  organizationId String
+  agentId        String
+  name           String
+  status         WidgetStatus   @default(ACTIVE)
+  publicKey      String         @unique
+  primaryColor   String         @default("#0f766e")
+  position       WidgetPosition @default(BOTTOM_RIGHT)
+  welcomeMessage String         @default("Hi, how can I help?")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  deletedAt      DateTime?
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent        Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  visitors     WidgetVisitor[]
+
+  @@index([organizationId])
+  @@index([agentId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("widgets")
+}
+
+model WidgetVisitor {
+  id             String   @id @default(uuid())
+  organizationId String
+  widgetId       String
+  visitorId      String
+  ipHash         String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  widget       Widget       @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+
+  @@unique([widgetId, visitorId])
+  @@index([organizationId])
+  @@index([widgetId])
+  @@index([visitorId])
+  @@index([createdAt])
+  @@map("widget_visitors")
 }
 
 model KnowledgeBase {
@@ -442,6 +654,7 @@ model Conversation {
   sessionId      String?
   channel        ConversationChannel
   status         ConversationStatus  @default(ACTIVE)
+  source         ConversationSource  @default(INTERNAL)
   startedAt      DateTime            @default(now())
   lastMessageAt  DateTime?
   endedAt        DateTime?
@@ -461,6 +674,7 @@ model Conversation {
   @@index([sessionId])
   @@index([channel])
   @@index([status])
+  @@index([source])
   @@index([startedAt])
   @@index([lastMessageAt])
   @@index([deletedAt])

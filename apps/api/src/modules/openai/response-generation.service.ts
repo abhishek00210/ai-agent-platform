@@ -27,8 +27,9 @@ export class ResponseGenerationService {
     private readonly memory: MemoryService,
   ) {}
 
-  async send(context: TenantContext, input: SendChatMessageDto) {
+  async send(context: TenantContext, input: SendChatMessageDto & { source?: ChatMessageSource }) {
     const startedAt = Date.now();
+    const messageSource = input.source ?? "CHAT_TEST";
     const conversation = await this.contextService.load({
       organizationId: context.organizationId,
       conversationId: input.conversationId,
@@ -42,7 +43,7 @@ export class ResponseGenerationService {
       content: input.message.trim(),
       messageType: "TEXT",
       tokenCount: estimateTokenCount(input.message),
-      metadata: { source: "chat_send" },
+      metadata: { source: messageSource },
     });
     await this.conversations.touch(
       context.organizationId,
@@ -93,6 +94,7 @@ export class ResponseGenerationService {
       tokenCount: response.tokenUsage.totalTokens || estimateTokenCount(response.content),
       metadata: {
         model: response.model,
+        source: messageSource,
         responseTime,
         tokenUsage: {
           promptTokens: response.tokenUsage.promptTokens,
@@ -112,6 +114,8 @@ export class ResponseGenerationService {
         })),
         retrievalCount: retrievedChunks.length,
         knowledgeBaseIds,
+        memoryUsed: Boolean(promptMemory.summary || promptMemory.facts.length > 0),
+        memoryFactCount: promptMemory.facts.length,
       } satisfies Prisma.InputJsonObject,
     });
     await this.conversations.touch(
@@ -132,12 +136,15 @@ export class ResponseGenerationService {
       userMessage: toMessageResponse(userMessage),
       assistantMessage: toMessageResponse(assistantMessage),
       sources,
+      retrievedChunks,
       tokenUsage: response.tokenUsage,
       responseTime,
       model: response.model,
       metadata: {
         retrievalCount: retrievedChunks.length,
         knowledgeBaseIds,
+        memoryUsed: Boolean(promptMemory.summary || promptMemory.facts.length > 0),
+        memoryFactCount: promptMemory.facts.length,
       },
     };
   }
@@ -150,7 +157,7 @@ export class ResponseGenerationService {
   ) {
     return this.conversations.createAuditEvent({
       organizationId: context.organizationId,
-      actorUserId: context.userId,
+      actorUserId: context.userId === "public-widget" ? undefined : context.userId,
       action,
       entityType: "Message",
       entityId,
@@ -190,6 +197,8 @@ export class ResponseGenerationService {
     }
   }
 }
+
+type ChatMessageSource = "CHAT_TEST" | "WIDGET";
 
 function toMessageResponse(message: {
   id: string;
