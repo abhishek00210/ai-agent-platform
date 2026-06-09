@@ -137,7 +137,10 @@ export class MemoryService {
   ) {
     return this.repository.createAuditEvent({
       organizationId: context.organizationId,
-      actorUserId: context.userId === "public-widget" ? undefined : context.userId,
+      actorUserId:
+        context.userId === "public-widget" || context.userId === "voice-call"
+          ? undefined
+          : context.userId,
       action,
       entityType: "ConversationMemory",
       entityId,

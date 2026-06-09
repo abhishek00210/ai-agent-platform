@@ -8,6 +8,7 @@ import type {
   CallListQuery,
   CallListResponse,
   CallSessionSummary,
+  RealtimeSessionSummary,
   CreateAgentInput,
   CreateConversationInput,
   CreateDocumentInput,
@@ -572,6 +573,10 @@ export class ApiClient {
 
   async callSessions(callId: string): Promise<CallSessionSummary[]> {
     return this.request<CallSessionSummary[]>(`/voice/calls/${callId}/sessions`);
+  }
+
+  async callRealtimeSessions(callId: string): Promise<RealtimeSessionSummary[]> {
+    return this.request<RealtimeSessionSummary[]>(`/voice/calls/${callId}/realtime-sessions`);
   }
 
   async widgets(query: WidgetListQuery = {}): Promise<WidgetListResponse> {

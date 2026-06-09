@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { RealtimeGateway } from "../realtime/realtime.gateway";
 import { AudioPacketService } from "./audio-packet.service";
 import type {
   MediaStreamConnectionState,
@@ -16,6 +17,7 @@ export class MediaStreamService {
   constructor(
     private readonly lifecycle: StreamLifecycleService,
     private readonly audioPackets: AudioPacketService,
+    private readonly realtime: RealtimeGateway,
   ) {}
 
   registerConnection(connectionId: string) {
@@ -25,16 +27,21 @@ export class MediaStreamService {
     });
   }
 
-  async handleEvent(connectionId: string, event: unknown) {
+  async handleEvent(
+    connectionId: string,
+    event: unknown,
+    sendToTwilio?: (event: Record<string, unknown>) => boolean,
+    closeTwilio?: () => void,
+  ) {
     const parsed = parseTwilioEvent(event);
     switch (parsed.event) {
       case "connected":
         this.registerConnection(connectionId);
         return { ok: true };
       case "start":
-        return this.handleStart(connectionId, parsed);
+        return this.handleStart(connectionId, parsed, sendToTwilio, closeTwilio);
       case "media":
-        return this.audioPackets.process(parsed);
+        return this.handleMedia(parsed);
       case "stop":
         return this.handleStop(connectionId, parsed);
       default:
@@ -45,23 +52,53 @@ export class MediaStreamService {
   async handleDisconnect(connectionId: string) {
     const connection = this.connections.get(connectionId);
     this.connections.delete(connectionId);
-    await this.lifecycle.disconnect(connection?.streamSid);
+    if (connection?.streamSid) {
+      await Promise.all([
+        this.realtime.stop(connection.streamSid),
+        this.lifecycle.disconnect(connection.streamSid),
+      ]);
+    }
   }
 
-  private async handleStart(connectionId: string, event: TwilioStartEvent) {
+  private async handleStart(
+    connectionId: string,
+    event: TwilioStartEvent,
+    sendToTwilio?: (event: Record<string, unknown>) => boolean,
+    closeTwilio?: () => void,
+  ) {
     const session = await this.lifecycle.start(event);
+    if (!sendToTwilio || !closeTwilio) {
+      throw new BadRequestException("Twilio media sender is unavailable.");
+    }
     this.connections.set(connectionId, {
       connectionId,
       connectedAt: new Date(),
       streamSid: event.start.streamSid,
       twilioCallSid: event.start.callSid,
     });
+    await this.realtime.start({
+      streamSid: event.start.streamSid,
+      callSid: event.start.callSid,
+      sendToTwilio,
+      closeTwilio,
+    });
     this.logger.debug(`Twilio media stream started: ${event.start.streamSid}`);
     return session;
   }
 
+  private async handleMedia(event: Extract<TwilioMediaStreamEvent, { event: "media" }>) {
+    const result = await this.audioPackets.process(event);
+    if (event.media.payload) {
+      this.realtime.media(event.streamSid, event.media.payload);
+    }
+    return result;
+  }
+
   private async handleStop(connectionId: string, event: TwilioStopEvent) {
-    const result = await this.lifecycle.stop(event);
+    const [result] = await Promise.all([
+      this.lifecycle.stop(event),
+      this.realtime.stop(event.streamSid),
+    ]);
     this.connections.delete(connectionId);
     return result;
   }

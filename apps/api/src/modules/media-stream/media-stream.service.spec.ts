@@ -9,7 +9,16 @@ describe("MediaStreamService", () => {
   const audioPackets = {
     process: jest.fn(),
   };
-  const service = new MediaStreamService(lifecycle as never, audioPackets as never);
+  const realtime = {
+    start: jest.fn(),
+    media: jest.fn(),
+    stop: jest.fn(),
+  };
+  const service = new MediaStreamService(
+    lifecycle as never,
+    audioPackets as never,
+    realtime as never,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -24,21 +33,29 @@ describe("MediaStreamService", () => {
   it("starts a stream session from Twilio start events", async () => {
     lifecycle.start.mockResolvedValue({ id: "session-1" });
 
-    await service.handleEvent("conn-1", {
-      event: "start",
-      start: {
-        streamSid: "MZ123",
-        callSid: "CA123",
-        tracks: ["inbound"],
-        mediaFormat: { encoding: "audio/x-mulaw", sampleRate: 8000, channels: 1 },
+    await service.handleEvent(
+      "conn-1",
+      {
+        event: "start",
+        start: {
+          streamSid: "MZ123",
+          callSid: "CA123",
+          tracks: ["inbound"],
+          mediaFormat: { encoding: "audio/x-mulaw", sampleRate: 8000, channels: 1 },
+        },
       },
-    });
+      jest.fn().mockReturnValue(true),
+      jest.fn(),
+    );
 
     expect(lifecycle.start).toHaveBeenCalledWith(
       expect.objectContaining({
         event: "start",
         start: expect.objectContaining({ streamSid: "MZ123", callSid: "CA123" }),
       }),
+    );
+    expect(realtime.start).toHaveBeenCalledWith(
+      expect.objectContaining({ streamSid: "MZ123", callSid: "CA123" }),
     );
   });
 
@@ -58,6 +75,7 @@ describe("MediaStreamService", () => {
     expect(audioPackets.process).toHaveBeenCalledWith(
       expect.objectContaining({ event: "media", streamSid: "MZ123" }),
     );
+    expect(realtime.media).toHaveBeenCalledWith("MZ123", "base64-audio");
   });
 
   it("closes stream sessions on stop events", async () => {
@@ -72,5 +90,6 @@ describe("MediaStreamService", () => {
     expect(lifecycle.stop).toHaveBeenCalledWith(
       expect.objectContaining({ event: "stop", streamSid: "MZ123" }),
     );
+    expect(realtime.stop).toHaveBeenCalledWith("MZ123");
   });
 });

@@ -12,6 +12,7 @@ import { SkeletonBlock } from "@/components/layout/page-loader";
 import { authApi } from "@/lib/auth-api";
 import { useCallSessionStore } from "@/store/call-session-store";
 import { useCallStore } from "@/store/call-store";
+import { useRealtimeSessionStore } from "@/store/realtime-session-store";
 
 export default function CallDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -23,8 +24,17 @@ export default function CallDetailsPage() {
     queryKey: ["voice-call-sessions", params.id],
     queryFn: () => authApi.callSessions(params.id),
   });
+  const realtimeSessions = useQuery({
+    queryKey: ["voice-call-realtime-sessions", params.id],
+    queryFn: () => authApi.callRealtimeSessions(params.id),
+    refetchInterval: (query) =>
+      query.state.data?.some((session) => ["CONNECTING", "CONNECTED"].includes(session.status))
+        ? 3000
+        : false,
+  });
   const setSelectedCall = useCallStore((state) => state.setSelectedCall);
   const setSessions = useCallSessionStore((state) => state.setSessions);
+  const setRealtimeSessions = useRealtimeSessionStore((state) => state.setSessions);
 
   useEffect(() => {
     setSelectedCall(call.data ?? null);
@@ -33,6 +43,10 @@ export default function CallDetailsPage() {
   useEffect(() => {
     setSessions(sessions.data ?? []);
   }, [sessions.data, setSessions]);
+
+  useEffect(() => {
+    setRealtimeSessions(realtimeSessions.data ?? []);
+  }, [realtimeSessions.data, setRealtimeSessions]);
 
   return (
     <div className="space-y-6">
@@ -77,6 +91,75 @@ export default function CallDetailsPage() {
                 value={call.data.phoneNumber.friendlyName ?? call.data.phoneNumber.phoneNumber}
               />
               <Detail label="Created" value={new Date(call.data.createdAt).toLocaleString()} />
+            </div>
+          </section>
+
+          <section className="rounded-md border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="flex items-center gap-3">
+              <Sparkles className="h-5 w-5 text-zinc-500" aria-hidden="true" />
+              <div>
+                <h2 className="text-base font-semibold">OpenAI Realtime Sessions</h2>
+                <p className="mt-1 text-sm text-zinc-500">
+                  AI voice connection state and bidirectional audio transport metrics.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              {realtimeSessions.isLoading ? <SkeletonBlock className="h-28" /> : null}
+              {!realtimeSessions.isLoading && realtimeSessions.data?.length === 0 ? (
+                <EmptyState
+                  icon={Sparkles}
+                  title="No AI voice session yet"
+                  description="A realtime session appears when Twilio starts streaming an active call."
+                />
+              ) : null}
+              <div className="space-y-3">
+                {realtimeSessions.data?.map((session) => (
+                  <div
+                    key={session.id}
+                    className="rounded-md border border-zinc-200 p-4 dark:border-zinc-800"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium">{session.agent.name}</p>
+                        <p className="mt-1 break-all text-xs text-zinc-500">
+                          {session.openAiSessionId ?? "OpenAI session pending"}
+                        </p>
+                      </div>
+                      <span className="rounded-full border border-zinc-200 px-2 py-1 text-xs font-medium dark:border-zinc-800">
+                        {session.status}
+                      </span>
+                    </div>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                      <Detail label="Audio In" value={String(session.audioPacketsSent)} />
+                      <Detail label="Audio Out" value={String(session.audioPacketsReceived)} />
+                      <Detail
+                        label="Latency"
+                        value={
+                          session.lastLatencyMs === null ? "Pending" : `${session.lastLatencyMs}ms`
+                        }
+                      />
+                      <Detail
+                        label="Connected"
+                        value={
+                          session.connectedAt
+                            ? new Date(session.connectedAt).toLocaleString()
+                            : "Pending"
+                        }
+                      />
+                      <Detail
+                        label="Disconnected"
+                        value={
+                          session.disconnectedAt
+                            ? new Date(session.disconnectedAt).toLocaleString()
+                            : "Active"
+                        }
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </section>
 

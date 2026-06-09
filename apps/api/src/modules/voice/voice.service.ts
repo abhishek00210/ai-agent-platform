@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { CallSessionService } from "../media-stream/call-session.service";
+import { RealtimeSessionService } from "../realtime/realtime-session.service";
 import type { TenantContext } from "../tenant/tenant.service";
 import { CallService } from "./call.service";
 import { PhoneNumberService } from "./phone-number.service";
@@ -10,6 +11,7 @@ export class VoiceService {
     private readonly phoneNumbers: PhoneNumberService,
     private readonly calls: CallService,
     private readonly sessions: CallSessionService,
+    private readonly realtimeSessions: RealtimeSessionService,
   ) {}
 
   capabilities() {
@@ -21,10 +23,11 @@ export class VoiceService {
   }
 
   async dashboard(context: TenantContext) {
-    const [phoneNumberStats, callStats, streamStats] = await Promise.all([
+    const [phoneNumberStats, callStats, streamStats, realtimeStats] = await Promise.all([
       this.phoneNumbers.analytics(context),
       this.calls.stats(context),
       this.sessions.stats(context),
+      this.realtimeSessions.stats(context),
     ]);
     return {
       ...phoneNumberStats,
@@ -33,6 +36,7 @@ export class VoiceService {
       failedCalls: callStats.failedCalls,
       recentCalls: callStats.recentCalls,
       ...streamStats,
+      ...realtimeStats,
       callDurationSeconds: 0,
       bookings: 0,
       leads: 0,

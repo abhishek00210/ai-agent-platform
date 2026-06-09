@@ -1,0 +1,65 @@
+import { RealtimeAudioBridge } from "./realtime-audio-bridge";
+
+describe("RealtimeAudioBridge", () => {
+  const connections = {
+    sendAudio: jest.fn().mockReturnValue(true),
+  };
+  const sessions = {
+    recordAudioSent: jest.fn(),
+    recordAudioReceived: jest.fn(),
+  };
+  const bridge = new RealtimeAudioBridge(connections as never, sessions as never);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("forwards Twilio PCMU payloads to OpenAI without persisting raw audio", () => {
+    bridge.forwardTwilioAudio({
+      streamSid: "MZ123",
+      realtimeSessionId: "realtime-1",
+      payload: "base64-audio",
+    });
+
+    expect(connections.sendAudio).toHaveBeenCalledWith("MZ123", "base64-audio");
+    expect(sessions.recordAudioSent).toHaveBeenCalledWith("realtime-1");
+  });
+
+  it("forwards OpenAI PCMU payloads to the matching Twilio stream", () => {
+    const sendToTwilio = jest.fn().mockReturnValue(true);
+
+    bridge.forwardOpenAiAudio({
+      streamSid: "MZ123",
+      realtimeSessionId: "realtime-1",
+      payload: "base64-response",
+      sendToTwilio,
+    });
+
+    expect(sendToTwilio).toHaveBeenCalledWith({
+      event: "media",
+      streamSid: "MZ123",
+      media: { payload: "base64-response" },
+    });
+    expect(sessions.recordAudioReceived).toHaveBeenCalledWith("realtime-1");
+  });
+
+  it("drops audio metrics when either transport applies backpressure", () => {
+    connections.sendAudio.mockReturnValueOnce(false);
+    const sendToTwilio = jest.fn().mockReturnValue(false);
+
+    bridge.forwardTwilioAudio({
+      streamSid: "MZ123",
+      realtimeSessionId: "realtime-1",
+      payload: "stale-input",
+    });
+    bridge.forwardOpenAiAudio({
+      streamSid: "MZ123",
+      realtimeSessionId: "realtime-1",
+      payload: "stale-output",
+      sendToTwilio,
+    });
+
+    expect(sessions.recordAudioSent).not.toHaveBeenCalled();
+    expect(sessions.recordAudioReceived).not.toHaveBeenCalled();
+  });
+});

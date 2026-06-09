@@ -285,6 +285,30 @@ export interface CallSessionSummary {
   updatedAt: string;
 }
 
+export type RealtimeSessionStatus = "CONNECTING" | "CONNECTED" | "DISCONNECTED" | "FAILED";
+
+export interface RealtimeSessionSummary {
+  id: string;
+  organizationId: string;
+  callId: string;
+  callSessionId: string;
+  agentId: string;
+  conversationId: string | null;
+  openAiSessionId: string | null;
+  status: RealtimeSessionStatus;
+  audioPacketsSent: number;
+  audioPacketsReceived: number;
+  lastLatencyMs: number | null;
+  connectedAt: string | null;
+  disconnectedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  agent: {
+    id: string;
+    name: string;
+  };
+}
+
 export interface CallListResponse {
   total: number;
   page: number;
@@ -317,6 +341,13 @@ export interface VoiceDashboardStats {
   disconnectedStreams: number;
   failedStreams: number;
   packetsProcessed: number;
+  realtimeSessions: number;
+  activeRealtimeSessions: number;
+  failedRealtimeSessions: number;
+  realtimeConnectionSuccessRate: number;
+  realtimeAudioPacketsSent: number;
+  realtimeAudioPacketsReceived: number;
+  averageRealtimeLatencyMs: number;
   callDurationSeconds: number;
   bookings: number;
   leads: number;

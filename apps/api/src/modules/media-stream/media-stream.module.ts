@@ -1,4 +1,6 @@
 import { Module } from "@nestjs/common";
+import { AuthModule } from "../auth/auth.module";
+import { RealtimeModule } from "../realtime/realtime.module";
 import { TenantModule } from "../tenant/tenant.module";
 import { AudioPacketService } from "./audio-packet.service";
 import { CallSessionController } from "./call-session.controller";
@@ -9,7 +11,7 @@ import { CallSessionRepository } from "./repositories/call-session.repository";
 import { StreamLifecycleService } from "./stream-lifecycle.service";
 
 @Module({
-  imports: [TenantModule],
+  imports: [AuthModule, TenantModule, RealtimeModule],
   controllers: [CallSessionController],
   providers: [
     MediaStreamGateway,

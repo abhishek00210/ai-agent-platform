@@ -7,6 +7,7 @@ import type {
   CallListQuery,
   CallListResponse,
   CallSessionSummary,
+  RealtimeSessionSummary,
   CreateAgentInput,
   CreateConversationInput,
   CreateDocumentInput,
@@ -479,6 +480,9 @@ export const authApi = {
   },
   callSessions(callId: string) {
     return apiRequest<CallSessionSummary[]>(`/voice/calls/${callId}/sessions`);
+  },
+  callRealtimeSessions(callId: string) {
+    return apiRequest<RealtimeSessionSummary[]>(`/voice/calls/${callId}/realtime-sessions`);
   },
   widgets(query: WidgetListQuery = {}) {
     return apiRequest<WidgetListResponse>(`/widgets${toQuerySuffix(query)}`);

@@ -156,6 +156,13 @@ enum CallSessionStatus {
   FAILED
 }
 
+enum RealtimeSessionStatus {
+  CONNECTING
+  CONNECTED
+  DISCONNECTED
+  FAILED
+}
+
 model Organization {
   id        String             @id @default(uuid())
   name      String
@@ -186,6 +193,7 @@ model Organization {
   twilioConnections    TwilioConnection[]
   calls                Call[]
   callSessions         CallSession[]
+  realtimeSessions     RealtimeSession[]
   invitations          OrganizationInvitation[]
   auditEvents          AuditEvent[]
 
@@ -319,13 +327,14 @@ model Agent {
   updatedAt      DateTime    @updatedAt
   deletedAt      DateTime?
 
-  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  knowledgeBases  KnowledgeBase[]
-  ragSearchEvents RagSearchEvent[]
-  conversations   Conversation[]
-  widgets         Widget[]
-  phoneNumbers    PhoneNumber[]
-  calls           Call[]
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeBases   KnowledgeBase[]
+  ragSearchEvents  RagSearchEvent[]
+  conversations    Conversation[]
+  widgets          Widget[]
+  phoneNumbers     PhoneNumber[]
+  calls            Call[]
+  realtimeSessions RealtimeSession[]
 
   @@index([organizationId])
   @@index([status])
@@ -382,10 +391,11 @@ model Call {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  agent        Agent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  phoneNumber  PhoneNumber   @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
-  sessions     CallSession[]
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent            Agent             @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  phoneNumber      PhoneNumber       @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
+  sessions         CallSession[]
+  realtimeSessions RealtimeSession[]
 
   @@index([organizationId])
   @@index([phoneNumberId])
@@ -409,8 +419,9 @@ model CallSession {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  call         Call         @relation(fields: [callId], references: [id], onDelete: Cascade)
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  call            Call             @relation(fields: [callId], references: [id], onDelete: Cascade)
+  realtimeSession RealtimeSession?
 
   @@index([organizationId])
   @@index([callId])
@@ -418,6 +429,38 @@ model CallSession {
   @@index([streamSid])
   @@index([status])
   @@map("call_sessions")
+}
+
+model RealtimeSession {
+  id                   String                @id @default(uuid())
+  organizationId       String
+  callId               String
+  callSessionId        String                @unique
+  agentId              String
+  conversationId       String?               @unique
+  openAiSessionId      String?
+  status               RealtimeSessionStatus @default(CONNECTING)
+  audioPacketsSent     Int                   @default(0)
+  audioPacketsReceived Int                   @default(0)
+  lastLatencyMs        Int?
+  connectedAt          DateTime?
+  disconnectedAt       DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  call         Call          @relation(fields: [callId], references: [id], onDelete: Cascade)
+  callSession  CallSession   @relation(fields: [callSessionId], references: [id], onDelete: Cascade)
+  agent        Agent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([callId])
+  @@index([agentId])
+  @@index([openAiSessionId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("realtime_sessions")
 }
 
 model TwilioConnection {
@@ -662,11 +705,12 @@ model Conversation {
   updatedAt      DateTime            @updatedAt
   deletedAt      DateTime?
 
-  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  agent        Agent                @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  messages     Message[]
-  memories     ConversationMemory[]
-  memoryFacts  MemoryFact[]
+  organization    Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent           Agent                @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  messages        Message[]
+  memories        ConversationMemory[]
+  memoryFacts     MemoryFact[]
+  realtimeSession RealtimeSession?
 
   @@index([organizationId])
   @@index([agentId])

@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { HttpAdapterHost } from "@nestjs/core";
+import { ConfigService } from "@nestjs/config";
 import { createHash, randomUUID } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import type { Socket } from "node:net";
@@ -12,6 +13,7 @@ const WEBSOCKET_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 export class MediaStreamGateway implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MediaStreamGateway.name);
   private readonly sockets = new Map<string, Socket>();
+  private readonly pendingAudioPackets = new Map<string, number>();
   private httpServer?: NodeHttpServer;
   private readonly upgradeListener: UpgradeListener = (request, socket, head) => {
     void this.handleUpgrade(request, socket, head);
@@ -20,6 +22,7 @@ export class MediaStreamGateway implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly httpAdapterHost: HttpAdapterHost,
     private readonly mediaStreams: MediaStreamService,
+    private readonly config: ConfigService,
   ) {}
 
   onModuleInit() {
@@ -35,6 +38,7 @@ export class MediaStreamGateway implements OnModuleInit, OnModuleDestroy {
       socket.destroy();
     }
     this.sockets.clear();
+    this.pendingAudioPackets.clear();
   }
 
   private async handleUpgrade(request: IncomingMessage, socket: Socket, head: Buffer) {
@@ -78,12 +82,14 @@ export class MediaStreamGateway implements OnModuleInit, OnModuleDestroy {
 
     socket.on("close", () => {
       this.sockets.delete(connectionId);
+      this.pendingAudioPackets.delete(connectionId);
       void this.mediaStreams.handleDisconnect(connectionId);
     });
 
     socket.on("error", (error) => {
       this.logger.warn(`Twilio media socket error: ${error.message}`);
       this.sockets.delete(connectionId);
+      this.pendingAudioPackets.delete(connectionId);
       void this.mediaStreams.handleDisconnect(connectionId);
     });
   }
@@ -105,12 +111,50 @@ export class MediaStreamGateway implements OnModuleInit, OnModuleDestroy {
 
     try {
       const event = JSON.parse(frame.payload.toString("utf8")) as unknown;
-      await this.mediaStreams.handleEvent(connectionId, event);
+      await this.mediaStreams.handleEvent(
+        connectionId,
+        event,
+        (outboundEvent) => this.writeOutboundEvent(connectionId, socket, outboundEvent),
+        () => socket.end(encodeFrame(Buffer.alloc(0), 0x8)),
+      );
     } catch (error) {
       this.logger.warn(`Invalid Twilio media frame: ${readError(error)}`);
       socket.write(encodeFrame(Buffer.from(JSON.stringify({ error: "Invalid media frame" })), 0x1));
       socket.end(encodeFrame(Buffer.alloc(0), 0x8));
     }
+  }
+
+  private writeOutboundEvent(
+    connectionId: string,
+    socket: Socket,
+    event: Record<string, unknown>,
+  ): boolean {
+    if (!socket.writable) {
+      return false;
+    }
+
+    const isAudio = event.event === "media";
+    const pending = this.pendingAudioPackets.get(connectionId) ?? 0;
+    const maxPackets =
+      this.config.get<number>("openai.realtimeMaxBufferedAudioPackets") ?? 100;
+    const maxBytes = this.config.get<number>("openai.realtimeMaxBufferedAudioBytes") ?? 65_536;
+    if (isAudio && (pending >= maxPackets || socket.writableLength >= maxBytes)) {
+      this.logger.warn(`Dropping stale OpenAI audio for ${connectionId}: Twilio backpressure.`);
+      return false;
+    }
+
+    if (isAudio) {
+      this.pendingAudioPackets.set(connectionId, pending + 1);
+    }
+    socket.write(encodeFrame(Buffer.from(JSON.stringify(event)), 0x1), () => {
+      if (isAudio) {
+        this.pendingAudioPackets.set(
+          connectionId,
+          Math.max(0, (this.pendingAudioPackets.get(connectionId) ?? 1) - 1),
+        );
+      }
+    });
+    return true;
   }
 }
 

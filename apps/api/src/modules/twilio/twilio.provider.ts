@@ -27,4 +27,5 @@ export interface TelephonyProvider {
     input: { voiceWebhookUrl?: string; smsWebhookUrl?: string },
   ): Promise<void>;
   removeNumber(phoneNumberSid: string): Promise<void>;
+  endCallWithMessage(callSid: string, message: string): Promise<void>;
 }

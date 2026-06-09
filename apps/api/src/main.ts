@@ -11,7 +11,10 @@ import { SecurityHeadersMiddleware } from "./common/middleware/security-headers.
 import type { ApiConfig } from "./config/env.schema";
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create(AppModule, {
+    abortOnError: false,
+    bufferLogs: true,
+  });
   const config = app.get(ConfigService);
   const apiConfig = config.getOrThrow<ApiConfig>("api");
 
@@ -51,4 +54,8 @@ async function bootstrap(): Promise<void> {
   await app.listen(apiConfig.port, apiConfig.host);
 }
 
-void bootstrap();
+bootstrap().catch((error: unknown) => {
+  const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
+  process.stderr.write(`${message}\n`);
+  process.exitCode = 1;
+});

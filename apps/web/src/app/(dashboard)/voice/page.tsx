@@ -1,7 +1,16 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, PhoneCall, RefreshCcw, Settings2, Signal, XCircle } from "lucide-react";
+import {
+  AudioLines,
+  CheckCircle2,
+  Gauge,
+  PhoneCall,
+  RefreshCcw,
+  Settings2,
+  Signal,
+  XCircle,
+} from "lucide-react";
 import Link from "next/link";
 import { Button } from "@ai-agent-platform/ui";
 import { EmptyState } from "@/components/layout/empty-state";
@@ -94,6 +103,33 @@ export default function VoicePage() {
           label="Packets"
           value={stats?.packetsProcessed}
           loading={dashboard.isLoading}
+        />
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <RealtimeMetric
+          label="Realtime Sessions"
+          value={stats?.realtimeSessions}
+          loading={dashboard.isLoading}
+          icon={AudioLines}
+        />
+        <RealtimeMetric
+          label="Connected Calls"
+          value={stats?.activeRealtimeSessions}
+          loading={dashboard.isLoading}
+          icon={Signal}
+        />
+        <RealtimeMetric
+          label="Connection Success"
+          value={`${stats?.realtimeConnectionSuccessRate ?? 0}%`}
+          loading={dashboard.isLoading}
+          icon={CheckCircle2}
+        />
+        <RealtimeMetric
+          label="Average Latency"
+          value={`${stats?.averageRealtimeLatencyMs ?? 0}ms`}
+          loading={dashboard.isLoading}
+          icon={Gauge}
         />
       </section>
 
@@ -245,6 +281,32 @@ function StreamMetric({
         <SkeletonBlock className="mt-3 h-6 w-16" />
       ) : (
         <p className="mt-3 text-2xl font-semibold">{value ?? 0}</p>
+      )}
+    </div>
+  );
+}
+
+function RealtimeMetric({
+  label,
+  value,
+  loading,
+  icon: Icon,
+}: {
+  label: string;
+  value?: string | number;
+  loading: boolean;
+  icon: typeof AudioLines;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-zinc-500">{label}</p>
+        <Icon className="h-4 w-4 text-zinc-400" aria-hidden="true" />
+      </div>
+      {loading ? (
+        <SkeletonBlock className="mt-4 h-8 w-20" />
+      ) : (
+        <p className="mt-4 text-2xl font-semibold">{value ?? 0}</p>
       )}
     </div>
   );

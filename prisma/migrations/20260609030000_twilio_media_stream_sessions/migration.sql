@@ -37,7 +37,7 @@ CREATE INDEX "call_sessions_streamSid_idx" ON "call_sessions"("streamSid");
 CREATE INDEX "call_sessions_status_idx" ON "call_sessions"("status");
 
 -- AddForeignKey
-ALTER TABLE "call_sessions" ADD CONSTRAINT "call_sessions_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "call_sessions" ADD CONSTRAINT "call_sessions_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "call_sessions" ADD CONSTRAINT "call_sessions_callId_fkey" FOREIGN KEY ("callId") REFERENCES "calls"("id") ON DELETE CASCADE ON UPDATE CASCADE;

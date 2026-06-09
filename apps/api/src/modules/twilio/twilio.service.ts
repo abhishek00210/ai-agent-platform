@@ -108,6 +108,18 @@ export class TwilioService implements TelephonyProvider {
     );
   }
 
+  async endCallWithMessage(callSid: string, message: string): Promise<void> {
+    const body = new URLSearchParams();
+    body.set(
+      "Twiml",
+      `<Response><Say>${escapeXml(message)}</Say><Hangup/></Response>`,
+    );
+    await this.request(`/2010-04-01/Accounts/${this.accountSid}/Calls/${callSid}.json`, {
+      method: "POST",
+      body,
+    });
+  }
+
   private async request<T = unknown>(
     path: string,
     options: { method?: string; body?: URLSearchParams } = {},
@@ -151,4 +163,13 @@ export class TwilioService implements TelephonyProvider {
       ""
     );
   }
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
 }
