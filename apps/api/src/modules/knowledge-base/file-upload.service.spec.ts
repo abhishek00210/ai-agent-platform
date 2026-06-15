@@ -1,5 +1,5 @@
 import { BadRequestException } from "@nestjs/common";
-import { FileUploadService } from "./file-upload.service";
+import { FileUploadService, type UploadedPdf } from "./file-upload.service";
 import type { DocumentRepository } from "./repositories/document.repository";
 import type { StorageService } from "../storage/storage.service";
 import type { TenantContext } from "../tenant/tenant.service";
@@ -58,20 +58,14 @@ function createStorageMock(): jest.Mocked<StorageService> {
   } as unknown as jest.Mocked<StorageService>;
 }
 
-function pdfFile(overrides: Partial<Express.Multer.File> = {}): Express.Multer.File {
+function pdfFile(overrides: Partial<UploadedPdf> = {}): UploadedPdf {
   const buffer = Buffer.from("%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF");
 
   return {
-    fieldname: "file",
     originalname: "Pricing FAQ.pdf",
-    encoding: "7bit",
     mimetype: "application/pdf",
     size: buffer.length,
     buffer,
-    destination: "",
-    filename: "",
-    path: "",
-    stream: undefined as never,
     ...overrides,
   };
 }

@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Post, Req, UnauthorizedException, UseGuards } from "@nestjs/common";
-import type { Request } from "express";
+import type { FastifyRequest } from "fastify";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { AuthService } from "./auth.service";
@@ -22,12 +22,12 @@ export class AuthController {
   ) {}
 
   @Post("register")
-  register(@Body() body: RegisterDto, @Req() request: Request) {
+  register(@Body() body: RegisterDto, @Req() request: FastifyRequest) {
     return this.authService.register(body, this.deviceInfo(request));
   }
 
   @Post("login")
-  async login(@Body() body: LoginDto, @Req() request: Request) {
+  async login(@Body() body: LoginDto, @Req() request: FastifyRequest) {
     const key = this.bruteForceKey(body.email, request);
     await this.bruteForce.assertAllowed(key);
 
@@ -45,7 +45,7 @@ export class AuthController {
   }
 
   @Post("refresh")
-  refresh(@Body() body: RefreshTokenDto, @Req() request: Request) {
+  refresh(@Body() body: RefreshTokenDto, @Req() request: FastifyRequest) {
     return this.authService.refresh(body, this.deviceInfo(request));
   }
 
@@ -70,11 +70,11 @@ export class AuthController {
     return { user };
   }
 
-  private bruteForceKey(email: string, request: Request): string {
+  private bruteForceKey(email: string, request: FastifyRequest): string {
     return `${email.trim().toLowerCase()}:${request.ip ?? "unknown"}`;
   }
 
-  private deviceInfo(request: Request): string | undefined {
-    return request.header("user-agent") ?? undefined;
+  private deviceInfo(request: FastifyRequest): string | undefined {
+    return request.headers["user-agent"];
   }
 }

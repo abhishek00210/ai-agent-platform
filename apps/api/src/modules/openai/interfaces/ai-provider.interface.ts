@@ -22,6 +22,22 @@ export interface GenerateResponseResult {
   raw: unknown;
 }
 
+export interface TranscriptionSegment {
+  speaker: string;
+  startMs: number;
+  endMs: number;
+  text: string;
+  confidence?: number;
+}
+
+export interface TranscribeAudioResult {
+  text: string;
+  model: string;
+  language?: string;
+  durationSeconds?: number;
+  segments: TranscriptionSegment[];
+}
+
 export interface AiProvider {
   generateResponse(input: GenerateResponseInput): Promise<GenerateResponseResult>;
   generateEmbedding(input: { texts: string[]; user?: string }): Promise<{
@@ -29,4 +45,9 @@ export interface AiProvider {
     dimensions: number;
     vectors: number[][];
   }>;
+  transcribeAudio(input: {
+    filePath: string;
+    fileName: string;
+    language?: string;
+  }): Promise<TranscribeAudioResult>;
 }

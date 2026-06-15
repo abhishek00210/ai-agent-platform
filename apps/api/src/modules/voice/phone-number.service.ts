@@ -6,6 +6,7 @@ import type { AssignPhoneNumberAgentDto, ListPhoneNumbersQueryDto } from "./dto/
 import { normalizeE164 } from "./e164";
 import { PhoneNumberRepository } from "./repositories/phone-number.repository";
 import { VoiceWebhookUrlService } from "./voice-webhook-url.service";
+import { CallRoutingService } from "./call-routing.service";
 
 @Injectable()
 export class PhoneNumberService {
@@ -13,6 +14,7 @@ export class PhoneNumberService {
     private readonly phoneNumbers: PhoneNumberRepository,
     private readonly twilio: TwilioService,
     private readonly webhookUrls: VoiceWebhookUrlService,
+    private readonly routing: CallRoutingService,
   ) {}
 
   async sync(context: TenantContext) {
@@ -36,6 +38,7 @@ export class PhoneNumberService {
         });
       }),
     );
+    numbers.forEach((number) => this.routing.invalidate(number.phoneNumber));
 
     await this.audit(context, "phone_number.synced", undefined, {
       provider: "TWILIO",
@@ -90,6 +93,7 @@ export class PhoneNumberService {
       });
     }
     await this.phoneNumbers.assignAgent(context.organizationId, phoneNumberId, agent.id);
+    this.routing.invalidate(phoneNumber.phoneNumber);
     await this.audit(context, "phone_number.assigned", phoneNumber.id, {
       agentId: agent.id,
       phoneNumber: phoneNumber.phoneNumber,
@@ -100,6 +104,7 @@ export class PhoneNumberService {
   async unassign(context: TenantContext, phoneNumberId: string) {
     const phoneNumber = await this.getScopedPhoneNumber(context.organizationId, phoneNumberId);
     await this.phoneNumbers.unassignAgent(context.organizationId, phoneNumberId);
+    this.routing.invalidate(phoneNumber.phoneNumber);
     await this.audit(context, "phone_number.unassigned", phoneNumber.id, {
       previousAgentId: phoneNumber.agentId,
       phoneNumber: phoneNumber.phoneNumber,
@@ -111,6 +116,7 @@ export class PhoneNumberService {
     const phoneNumber = await this.getScopedPhoneNumber(context.organizationId, phoneNumberId);
     const status: PhoneNumberStatus = phoneNumber.agentId ? "ACTIVE" : "UNASSIGNED";
     await this.phoneNumbers.updateStatus(context.organizationId, phoneNumberId, status);
+    this.routing.invalidate(phoneNumber.phoneNumber);
     await this.audit(context, "phone_number.enabled", phoneNumber.id, { status });
     return this.getById(context, phoneNumberId);
   }
@@ -121,6 +127,7 @@ export class PhoneNumberService {
       await this.twilio.removeNumber(phoneNumber.twilioSid);
     }
     await this.phoneNumbers.updateStatus(context.organizationId, phoneNumberId, "INACTIVE");
+    this.routing.invalidate(phoneNumber.phoneNumber);
     await this.audit(context, "phone_number.disabled", phoneNumber.id, {
       phoneNumber: phoneNumber.phoneNumber,
     });

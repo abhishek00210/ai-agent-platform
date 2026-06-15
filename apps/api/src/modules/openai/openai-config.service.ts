@@ -21,6 +21,12 @@ export class OpenAiConfigService {
     return this.config.get<number>("openai.timeoutMs") ?? 30000;
   }
 
+  transcriptionModel(): string {
+    return (
+      this.config.get<string>("openai.transcriptionModel") ?? "gpt-4o-transcribe-diarize"
+    );
+  }
+
   embeddingModel(): string {
     return this.config.get<string>("openai.embeddingModel") ?? "text-embedding-3-small";
   }

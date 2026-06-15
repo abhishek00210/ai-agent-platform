@@ -31,12 +31,20 @@ export class StorageService {
     return this.provider.download(key);
   }
 
+  downloadToFile(key: string, destinationPath: string): Promise<void> {
+    return this.provider.downloadToFile(key, destinationPath);
+  }
+
   delete(key: string): Promise<void> {
     return this.provider.delete(key);
   }
 
-  createDownloadUrl(key: string, fileName: string): Promise<StorageDownloadAccess> {
-    return this.provider.createDownloadUrl(key, fileName);
+  createDownloadUrl(
+    key: string,
+    fileName: string,
+    contentType?: string,
+  ): Promise<StorageDownloadAccess> {
+    return this.provider.createDownloadUrl(key, fileName, contentType);
   }
 
   capabilities() {

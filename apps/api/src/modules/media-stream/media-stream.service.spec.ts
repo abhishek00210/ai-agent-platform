@@ -14,10 +14,15 @@ describe("MediaStreamService", () => {
     media: jest.fn(),
     stop: jest.fn(),
   };
+  const recordings = {
+    startForSession: jest.fn().mockResolvedValue(null),
+    stopForStream: jest.fn().mockResolvedValue(null),
+  };
   const service = new MediaStreamService(
     lifecycle as never,
     audioPackets as never,
     realtime as never,
+    recordings as never,
   );
 
   beforeEach(() => {
@@ -57,6 +62,7 @@ describe("MediaStreamService", () => {
     expect(realtime.start).toHaveBeenCalledWith(
       expect.objectContaining({ streamSid: "MZ123", callSid: "CA123" }),
     );
+    expect(recordings.startForSession).toHaveBeenCalledWith({ id: "session-1" });
   });
 
   it("processes media packets", async () => {
@@ -91,5 +97,37 @@ describe("MediaStreamService", () => {
       expect.objectContaining({ event: "stop", streamSid: "MZ123" }),
     );
     expect(realtime.stop).toHaveBeenCalledWith("MZ123");
+    expect(recordings.stopForStream).toHaveBeenCalledWith("MZ123");
+  });
+
+  it("finalizes recording when the Twilio socket disconnects unexpectedly", async () => {
+    lifecycle.start.mockResolvedValue({
+      id: "session-1",
+      streamSid: "MZ123",
+      callId: "call-1",
+      organizationId: "org-1",
+      twilioCallSid: "CA123",
+    });
+
+    await service.handleEvent(
+      "conn-disconnect",
+      {
+        event: "start",
+        start: {
+          streamSid: "MZ123",
+          callSid: "CA123",
+          tracks: ["inbound"],
+          mediaFormat: { encoding: "audio/x-mulaw", sampleRate: 8000, channels: 1 },
+        },
+      },
+      jest.fn().mockReturnValue(true),
+      jest.fn(),
+    );
+
+    await service.handleDisconnect("conn-disconnect");
+
+    expect(recordings.stopForStream).toHaveBeenCalledWith("MZ123");
+    expect(realtime.stop).toHaveBeenCalledWith("MZ123");
+    expect(lifecycle.disconnect).toHaveBeenCalledWith("MZ123");
   });
 });

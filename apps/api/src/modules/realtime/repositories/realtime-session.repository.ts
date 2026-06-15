@@ -24,11 +24,22 @@ export class RealtimeSessionRepository {
         streamSid,
         status: "CONNECTED",
       },
-      include: {
+      select: {
+        id: true,
+        callId: true,
+        organizationId: true,
         call: {
-          include: {
+          select: {
+            organizationId: true,
             agent: {
-              include: {
+              select: {
+                id: true,
+                name: true,
+                systemPrompt: true,
+                language: true,
+                voice: true,
+                status: true,
+                deletedAt: true,
                 knowledgeBases: {
                   where: { deletedAt: null, status: "ACTIVE" },
                   select: { id: true },
@@ -73,7 +84,12 @@ export class RealtimeSessionRepository {
     });
   }
 
-  async markClosedIfActive(realtimeSessionId: string, status: RealtimeSessionStatus) {
+  async markClosedIfActive(
+    realtimeSessionId: string,
+    status: RealtimeSessionStatus,
+    audioPacketsSent = 0,
+    audioPacketsReceived = 0,
+  ) {
     const result = await this.prisma.realtimeSession.updateMany({
       where: {
         id: realtimeSessionId,
@@ -82,26 +98,12 @@ export class RealtimeSessionRepository {
       data: {
         status,
         disconnectedAt: new Date(),
+        audioPacketsSent: { increment: audioPacketsSent },
+        audioPacketsReceived: { increment: audioPacketsReceived },
       },
     });
     const session = await this.findById(realtimeSessionId);
     return { session, changed: result.count > 0 };
-  }
-
-  incrementAudioSent(realtimeSessionId: string) {
-    return this.prisma.realtimeSession.update({
-      where: { id: realtimeSessionId },
-      data: { audioPacketsSent: { increment: 1 } },
-    });
-  }
-
-  incrementAudioReceived(realtimeSessionId: string) {
-    return this.prisma.realtimeSession.update({
-      where: { id: realtimeSessionId },
-      data: {
-        audioPacketsReceived: { increment: 1 },
-      },
-    });
   }
 
   recordLatency(realtimeSessionId: string, latencyMs: number) {

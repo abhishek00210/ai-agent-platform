@@ -5,8 +5,7 @@ describe("CallSessionService", () => {
   const repository = {
     findCallByTwilioSid: jest.fn(),
     upsertStarted: jest.fn(),
-    incrementPacket: jest.fn(),
-    updateStatus: jest.fn(),
+    close: jest.fn(),
     stats: jest.fn(),
     findByCallId: jest.fn(),
     createAuditEvent: jest.fn(),
@@ -55,16 +54,18 @@ describe("CallSessionService", () => {
     );
   });
 
-  it("increments packet metrics without storing raw audio", async () => {
-    repository.incrementPacket.mockResolvedValue({ id: "session-1", packetCount: 2 });
+  it("increments packet metrics in memory without database writes", async () => {
+    const first = service.recordPacket("MZPACKET");
+    const second = service.recordPacket("MZPACKET");
 
-    await service.recordPacket("MZ123");
-
-    expect(repository.incrementPacket).toHaveBeenCalledWith("MZ123");
+    expect(first.packetCount).toBe(1);
+    expect(second.packetCount).toBe(2);
+    expect(repository.close).not.toHaveBeenCalled();
   });
 
   it("marks sessions disconnected on stop", async () => {
-    repository.updateStatus.mockResolvedValue({
+    service.recordPacket("MZ123");
+    repository.close.mockResolvedValue({
       id: "session-1",
       organizationId: "org-1",
       streamSid: "MZ123",
@@ -73,6 +74,6 @@ describe("CallSessionService", () => {
 
     await service.stop("MZ123");
 
-    expect(repository.updateStatus).toHaveBeenCalledWith("MZ123", "DISCONNECTED");
+    expect(repository.close).toHaveBeenCalledWith("MZ123", "DISCONNECTED", 1);
   });
 });

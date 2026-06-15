@@ -2,6 +2,7 @@ import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common"
 import { ConfigService } from "@nestjs/config";
 import WebSocket from "ws";
 import type { OpenAiRealtimeEvent } from "./realtime.types";
+import { RealtimeMetricsService } from "../../common/metrics/realtime-metrics.service";
 
 interface ManagedRealtimeConnection {
   socket: WebSocket;
@@ -13,7 +14,10 @@ export class RealtimeConnectionManager {
   private readonly logger = new Logger(RealtimeConnectionManager.name);
   private readonly connections = new Map<string, ManagedRealtimeConnection>();
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly metrics: RealtimeMetricsService,
+  ) {}
 
   connect(
     streamSid: string,
@@ -37,16 +41,21 @@ export class RealtimeConnectionManager {
         },
       },
     );
+    const connectStartedAt = this.metrics.now();
 
     return new Promise((resolve, reject) => {
+      let opened = false;
       const timeout = setTimeout(() => {
         socket.terminate();
         reject(new ServiceUnavailableException("OpenAI Realtime connection timed out."));
       }, 10_000);
 
       socket.once("open", () => {
+        opened = true;
         clearTimeout(timeout);
         this.connections.set(streamSid, { socket, pendingAudioPackets: 0 });
+        this.metrics.observe("openai_connect_ms", connectStartedAt);
+        this.metrics.increment("active_calls");
         resolve();
       });
 
@@ -67,6 +76,7 @@ export class RealtimeConnectionManager {
       socket.once("error", (error) => {
         clearTimeout(timeout);
         if (socket.readyState !== WebSocket.OPEN) {
+          this.metrics.observe("openai_connect_ms", connectStartedAt, false);
           reject(new ServiceUnavailableException("OpenAI Realtime connection failed."));
         }
         this.logger.error(`OpenAI Realtime socket error: ${error.message}`);
@@ -75,6 +85,10 @@ export class RealtimeConnectionManager {
       socket.once("close", (_code, reason) => {
         clearTimeout(timeout);
         this.connections.delete(streamSid);
+        if (opened) {
+          this.metrics.increment("active_calls", -1);
+        }
+        this.metrics.increment("openai_disconnects");
         void onClose(reason.toString() || "OpenAI socket closed.");
       });
     });
@@ -102,6 +116,8 @@ export class RealtimeConnectionManager {
       connection.socket.bufferedAmount >= maxBytes
     ) {
       this.logger.warn(`Dropping stale Twilio audio for ${streamSid}: realtime backpressure.`);
+      this.metrics.increment("dropped_audio_frames");
+      this.metrics.increment("backpressure_events");
       return false;
     }
 

@@ -8,7 +8,6 @@ import { RagController } from "./rag.controller";
 import { RagService } from "./rag.service";
 import { RagRepository } from "./repositories/rag.repository";
 import { RetrievalService } from "./retrieval.service";
-import { SimilarityService } from "./similarity.service";
 import { SourceCitationService } from "./source-citation.service";
 
 @Module({
@@ -17,7 +16,6 @@ import { SourceCitationService } from "./source-citation.service";
   providers: [
     RagService,
     RetrievalService,
-    SimilarityService,
     ContextBuilderService,
     AnswerGenerationService,
     SourceCitationService,

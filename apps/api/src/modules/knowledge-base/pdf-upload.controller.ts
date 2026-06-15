@@ -1,16 +1,13 @@
 import {
-  Body,
   Controller,
   Get,
   Param,
   ParseUUIDPipe,
   Post,
-  UploadedFile,
+  Req,
   UseGuards,
-  UseInterceptors,
 } from "@nestjs/common";
-import { FileInterceptor } from "@nestjs/platform-express";
-import { memoryStorage } from "multer";
+import type { FastifyRequest } from "fastify";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import type { JwtPayload } from "../auth/auth.types";
@@ -18,8 +15,6 @@ import { TenantService } from "../tenant/tenant.service";
 import { DocumentService } from "./document.service";
 import { UploadPdfDto } from "./dto/document.dto";
 import { FileUploadService } from "./file-upload.service";
-
-const MAX_PDF_SIZE_BYTES = 25 * 1024 * 1024;
 
 @UseGuards(JwtAuthGuard)
 @Controller("documents")
@@ -31,21 +26,32 @@ export class PdfUploadController {
   ) {}
 
   @Post("upload")
-  @UseInterceptors(
-    FileInterceptor("file", {
-      storage: memoryStorage(),
-      limits: {
-        fileSize: MAX_PDF_SIZE_BYTES,
-        files: 1,
-      },
-    }),
-  )
-  uploadPdf(
+  async uploadPdf(
     @CurrentUser() user: JwtPayload,
-    @Body() body: UploadPdfDto,
-    @UploadedFile() file?: Express.Multer.File,
+    @Req() request: FastifyRequest,
   ) {
-    return this.fileUploadService.uploadPdf(this.tenant.fromUser(user), body, file);
+    const part = await request.file();
+    const fields = part?.fields as Record<string, { value?: unknown }> | undefined;
+    const body: UploadPdfDto = {
+      knowledgeBaseId: String(fields?.knowledgeBaseId?.value ?? ""),
+      description:
+        fields?.description?.value === undefined
+          ? undefined
+          : String(fields.description.value),
+    };
+    const buffer = part ? await part.toBuffer() : undefined;
+    return this.fileUploadService.uploadPdf(
+      this.tenant.fromUser(user),
+      body,
+      part && buffer
+        ? {
+            originalname: part.filename,
+            mimetype: part.mimetype,
+            size: buffer.length,
+            buffer,
+          }
+        : undefined,
+    );
   }
 
   @Get(":id/download")

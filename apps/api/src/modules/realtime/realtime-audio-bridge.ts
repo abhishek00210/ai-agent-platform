@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { RealtimeConnectionManager } from "./realtime-connection-manager";
 import { RealtimeSessionService } from "./realtime-session.service";
+import { RecordingBufferService } from "../recording/recording-buffer.service";
 
 @Injectable()
 export class RealtimeAudioBridge {
@@ -9,12 +10,14 @@ export class RealtimeAudioBridge {
   constructor(
     private readonly connections: RealtimeConnectionManager,
     private readonly sessions: RealtimeSessionService,
+    private readonly recordings: RecordingBufferService,
   ) {}
 
   forwardTwilioAudio(input: { streamSid: string; realtimeSessionId: string; payload: string }) {
     if (this.connections.sendAudio(input.streamSid, input.payload)) {
-      void this.sessions.recordAudioSent(input.realtimeSessionId);
+      this.sessions.recordAudioSent(input.realtimeSessionId);
     }
+    this.recordings.capture(input.streamSid, input.payload);
   }
 
   forwardOpenAiAudio(input: {
@@ -31,7 +34,7 @@ export class RealtimeAudioBridge {
       },
     });
     if (accepted) {
-      void this.sessions.recordAudioReceived(input.realtimeSessionId);
+      this.sessions.recordAudioReceived(input.realtimeSessionId);
     } else {
       this.logger.warn(
         `Dropping stale OpenAI audio for ${input.streamSid}: Twilio backpressure.`,

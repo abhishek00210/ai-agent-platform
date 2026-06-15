@@ -36,7 +36,7 @@ describe("JwtAuthGuard", () => {
 function requestWithAuth(authorization?: string) {
   return {
     user: undefined,
-    header: jest.fn((name: string) => (name === "Authorization" ? authorization : undefined)),
+    headers: authorization ? { authorization } : {},
   };
 }
 

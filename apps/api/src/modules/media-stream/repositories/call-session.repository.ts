@@ -58,20 +58,12 @@ export class CallSessionRepository {
     });
   }
 
-  incrementPacket(streamSid: string) {
-    return this.prisma.callSession.update({
-      where: { streamSid },
-      data: {
-        packetCount: { increment: 1 },
-      },
-    });
-  }
-
-  updateStatus(streamSid: string, status: CallSessionStatus) {
+  close(streamSid: string, status: CallSessionStatus, packetCount: number) {
     return this.prisma.callSession.update({
       where: { streamSid },
       data: {
         status,
+        packetCount: { increment: packetCount },
         ...(status === "DISCONNECTED" || status === "FAILED" ? { disconnectedAt: new Date() } : {}),
       },
     });

@@ -9,6 +9,13 @@ import { DocumentRepository } from "./repositories/document.repository";
 const PDF_MIME_TYPE = "application/pdf";
 const MAX_PDF_SIZE_BYTES = 25 * 1024 * 1024;
 
+export interface UploadedPdf {
+  originalname: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+}
+
 @Injectable()
 export class FileUploadService {
   constructor(
@@ -16,7 +23,7 @@ export class FileUploadService {
     private readonly storage: StorageService,
   ) {}
 
-  async uploadPdf(context: TenantContext, input: UploadPdfDto, file?: Express.Multer.File) {
+  async uploadPdf(context: TenantContext, input: UploadPdfDto, file?: UploadedPdf) {
     await this.assertKnowledgeBaseBelongsToTenant(context.organizationId, input.knowledgeBaseId);
     this.validatePdf(file);
 
@@ -92,7 +99,7 @@ export class FileUploadService {
     }
   }
 
-  private validatePdf(file?: Express.Multer.File): asserts file is Express.Multer.File {
+  private validatePdf(file?: UploadedPdf): asserts file is UploadedPdf {
     if (!file) {
       throw new BadRequestException("PDF file is required.");
     }

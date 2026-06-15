@@ -23,6 +23,17 @@ describe("RealtimeEventProcessor", () => {
   const retrieval = {
     search: jest.fn(),
   };
+  const persistence = {
+    enqueue: jest.fn((task: () => Promise<unknown>) => {
+      void task();
+      return true;
+    }),
+  };
+  const metrics = {
+    now: jest.fn(() => performance.now()),
+    observe: jest.fn(),
+    increment: jest.fn(),
+  };
   const processor = new RealtimeEventProcessor(
     config as never,
     connections as never,
@@ -30,6 +41,8 @@ describe("RealtimeEventProcessor", () => {
     sessions as never,
     conversations as never,
     retrieval as never,
+    persistence as never,
+    metrics as never,
   );
   const connection = {
     realtimeSessionId: "realtime-1",
@@ -49,6 +62,8 @@ describe("RealtimeEventProcessor", () => {
     },
     sendToTwilio: jest.fn().mockReturnValue(true),
     closeTwilio: jest.fn(),
+    ready: true,
+    startupAudio: [],
   };
 
   beforeEach(() => {
@@ -79,13 +94,12 @@ describe("RealtimeEventProcessor", () => {
       knowledgeBaseIds: ["kb-1"],
       query: "When are you open?",
     });
-    expect(connections.send).toHaveBeenCalledWith(
-      "MZ123",
-      expect.objectContaining({ type: "conversation.item.create" }),
-    );
     expect(connections.send).toHaveBeenCalledWith("MZ123", {
       type: "response.create",
-      response: { output_modalities: ["audio"] },
+      response: {
+        output_modalities: ["audio"],
+        instructions: expect.stringContaining("Office hours are 9 to 5."),
+      },
     });
   });
 
@@ -111,5 +125,30 @@ describe("RealtimeEventProcessor", () => {
       event: "clear",
       streamSid: "MZ123",
     });
+  });
+
+  it("cancels and truncates unplayed assistant audio during barge-in", async () => {
+    await processor.process(connection, {
+      type: "response.output_item.added",
+      item: { id: "item-1", role: "assistant" },
+    });
+    await processor.process(connection, {
+      type: "response.output_audio.delta",
+      delta: Buffer.alloc(800).toString("base64"),
+    });
+    await processor.process(connection, { type: "input_audio_buffer.speech_started" });
+
+    expect(connections.send).toHaveBeenCalledWith("MZ123", {
+      type: "response.cancel",
+    });
+    expect(connections.send).toHaveBeenCalledWith(
+      "MZ123",
+      expect.objectContaining({
+        type: "conversation.item.truncate",
+        item_id: "item-1",
+        content_index: 0,
+        audio_end_ms: expect.any(Number),
+      }),
+    );
   });
 });

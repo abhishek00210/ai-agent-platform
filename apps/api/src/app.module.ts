@@ -15,6 +15,8 @@ import { MemoryModule } from "./modules/memory/memory.module";
 import { OrganizationModule } from "./modules/organization/organization.module";
 import { OpenAiModule } from "./modules/openai/openai.module";
 import { RagModule } from "./modules/rag/rag.module";
+import { RecordingModule } from "./modules/recording/recording.module";
+import { TranscriptionModule } from "./modules/transcription/transcription.module";
 import { StorageModule } from "./modules/storage/storage.module";
 import { TenantModule } from "./modules/tenant/tenant.module";
 import { TwilioModule } from "./modules/twilio/twilio.module";
@@ -26,6 +28,7 @@ import { envConfig, validateEnv } from "./config/env.schema";
 import { DatabaseModule } from "./database/database.module";
 import { RedisModule } from "./redis/redis.module";
 import { SecurityModule } from "./security/security.module";
+import { LatencyMetricsModule } from "./common/metrics/latency-metrics.module";
 
 @Module({
   imports: [
@@ -37,7 +40,13 @@ import { SecurityModule } from "./security/security.module";
     }),
     LoggerModule.forRoot({
       pinoHttp: {
-        autoLogging: true,
+        autoLogging:
+          process.env.HTTP_AUTO_LOGGING === "false"
+            ? false
+            : {
+                ignore: (request) =>
+                  request.url?.startsWith("/api/v1/health") ?? false,
+              },
         transport:
           process.env.NODE_ENV === "production"
             ? undefined
@@ -51,6 +60,7 @@ import { SecurityModule } from "./security/security.module";
     RedisModule,
     TenantModule,
     SecurityModule,
+    LatencyMetricsModule,
     AuthModule,
     UserModule,
     OrganizationModule,
@@ -63,6 +73,8 @@ import { SecurityModule } from "./security/security.module";
     FaqModule,
     RagModule,
     MemoryModule,
+    RecordingModule,
+    TranscriptionModule,
     VoiceModule,
     TwilioModule,
     MailModule,

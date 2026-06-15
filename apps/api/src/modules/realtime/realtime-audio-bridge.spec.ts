@@ -8,7 +8,14 @@ describe("RealtimeAudioBridge", () => {
     recordAudioSent: jest.fn(),
     recordAudioReceived: jest.fn(),
   };
-  const bridge = new RealtimeAudioBridge(connections as never, sessions as never);
+  const recordings = {
+    capture: jest.fn(),
+  };
+  const bridge = new RealtimeAudioBridge(
+    connections as never,
+    sessions as never,
+    recordings as never,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -22,7 +29,11 @@ describe("RealtimeAudioBridge", () => {
     });
 
     expect(connections.sendAudio).toHaveBeenCalledWith("MZ123", "base64-audio");
+    expect(recordings.capture).toHaveBeenCalledWith("MZ123", "base64-audio");
     expect(sessions.recordAudioSent).toHaveBeenCalledWith("realtime-1");
+    expect(connections.sendAudio.mock.invocationCallOrder[0]).toBeLessThan(
+      recordings.capture.mock.invocationCallOrder[0] ?? 0,
+    );
   });
 
   it("forwards OpenAI PCMU payloads to the matching Twilio stream", () => {
@@ -61,5 +72,6 @@ describe("RealtimeAudioBridge", () => {
 
     expect(sessions.recordAudioSent).not.toHaveBeenCalled();
     expect(sessions.recordAudioReceived).not.toHaveBeenCalled();
+    expect(recordings.capture).toHaveBeenCalledWith("MZ123", "stale-input");
   });
 });

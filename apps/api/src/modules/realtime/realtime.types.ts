@@ -20,6 +20,8 @@ export interface RealtimeConnection {
   context: RealtimeAgentContext;
   sendToTwilio: (event: Record<string, unknown>) => boolean;
   closeTwilio: () => void;
+  ready: boolean;
+  startupAudio: string[];
 }
 
 export interface OpenAiRealtimeEvent {
@@ -27,6 +29,7 @@ export interface OpenAiRealtimeEvent {
   session?: { id?: string };
   delta?: string;
   transcript?: string;
+  item?: { id?: string; type?: string; role?: string };
   response?: {
     id?: string;
     usage?: {

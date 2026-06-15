@@ -1,10 +1,13 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, OnModuleDestroy } from "@nestjs/common";
 import type { Prisma } from "../../../generated/prisma";
 import type { TenantContext } from "../tenant/tenant.service";
 import { CallSessionRepository } from "./repositories/call-session.repository";
 
 @Injectable()
-export class CallSessionService {
+export class CallSessionService implements OnModuleDestroy {
+  private readonly logger = new Logger(CallSessionService.name);
+  private readonly packetCounts = new Map<string, number>();
+
   constructor(private readonly sessions: CallSessionRepository) {}
 
   async listForCall(context: TenantContext, callId: string) {
@@ -28,6 +31,7 @@ export class CallSessionService {
       twilioCallSid: call.twilioCallSid,
       streamSid: input.streamSid,
     });
+    this.packetCounts.set(input.streamSid, 0);
 
     await Promise.all([
       this.audit(call.organizationId, "media_stream.started", session.id, {
@@ -40,13 +44,16 @@ export class CallSessionService {
     return session;
   }
 
-  async recordPacket(streamSid: string) {
-    const session = await this.sessions.incrementPacket(streamSid);
-    return session;
+  recordPacket(streamSid: string) {
+    const packetCount = (this.packetCounts.get(streamSid) ?? 0) + 1;
+    this.packetCounts.set(streamSid, packetCount);
+    return { streamSid, packetCount };
   }
 
   async stop(streamSid: string) {
-    const session = await this.sessions.updateStatus(streamSid, "DISCONNECTED");
+    const packetCount = this.packetCounts.get(streamSid) ?? 0;
+    this.packetCounts.delete(streamSid);
+    const session = await this.sessions.close(streamSid, "DISCONNECTED", packetCount);
     await this.audit(session.organizationId, "media_stream.stopped", session.id, {
       streamSid,
       packetCount: session.packetCount,
@@ -59,12 +66,27 @@ export class CallSessionService {
   }
 
   async fail(streamSid: string, reason: string) {
-    const session = await this.sessions.updateStatus(streamSid, "FAILED");
+    const packetCount = this.packetCounts.get(streamSid) ?? 0;
+    this.packetCounts.delete(streamSid);
+    const session = await this.sessions.close(streamSid, "FAILED", packetCount);
     await this.audit(session.organizationId, "media_stream.failed", session.id, {
       streamSid,
       reason,
     });
     return session;
+  }
+
+  async onModuleDestroy() {
+    const pending = [...this.packetCounts.entries()];
+    this.packetCounts.clear();
+    await Promise.allSettled(
+      pending.map(([streamSid, packetCount]) =>
+        this.sessions.close(streamSid, "DISCONNECTED", packetCount),
+      ),
+    );
+    if (pending.length > 0) {
+      this.logger.log(`Flushed ${pending.length} active media session counters.`);
+    }
   }
 
   async stats(context: TenantContext) {

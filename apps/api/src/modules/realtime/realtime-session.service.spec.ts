@@ -11,7 +11,17 @@ describe("RealtimeSessionService", () => {
     create: jest.fn(),
     close: jest.fn(),
   };
-  const service = new RealtimeSessionService(sessions as never, conversations as never);
+  const persistence = {
+    enqueue: jest.fn((task: () => Promise<unknown>) => {
+      void task();
+      return true;
+    }),
+  };
+  const service = new RealtimeSessionService(
+    sessions as never,
+    conversations as never,
+    persistence as never,
+  );
   const context = {
     organizationId: "org-1",
     callId: "call-1",

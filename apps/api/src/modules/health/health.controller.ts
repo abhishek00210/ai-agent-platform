@@ -9,4 +9,13 @@ export class HealthController {
   status() {
     return this.healthService.status();
   }
+
+  @Get("live")
+  live() {
+    return {
+      status: "ok",
+      service: "ai-agent-platform-api",
+      timestamp: new Date().toISOString(),
+    };
+  }
 }

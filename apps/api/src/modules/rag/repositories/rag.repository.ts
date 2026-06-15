@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { Prisma } from "../../../../generated/prisma";
+import { Prisma } from "../../../../generated/prisma";
 import { PrismaService } from "../../../database/prisma.service";
 
 @Injectable()
@@ -25,31 +25,72 @@ export class RagRepository {
     });
   }
 
-  findEmbeddings(organizationId: string, knowledgeBaseIds: string[]) {
-    return this.prisma.knowledgeEmbedding.findMany({
-      where: {
-        organizationId,
-        chunk: {
-          organizationId,
-          knowledgeBaseId: { in: knowledgeBaseIds },
-          OR: [
-            { document: { deletedAt: null } },
-            { websiteSource: { deletedAt: null, status: "COMPLETED" } },
-            { faqEntry: { status: "ACTIVE", deletedAt: null } },
-          ],
-        },
-      },
-      include: {
-        chunk: {
-          include: {
-            knowledgeBase: { select: { id: true, name: true } },
-            document: { select: { id: true, name: true, originalFileName: true } },
-            websiteSource: { select: { id: true, title: true, url: true } },
-            faqEntry: { select: { id: true, question: true } },
-          },
-        },
-      },
-    });
+  vectorSearch(input: {
+    organizationId: string;
+    knowledgeBaseIds: string[];
+    vector: number[];
+    topK: number;
+    threshold: number;
+  }) {
+    if (input.knowledgeBaseIds.length === 0 || input.vector.length !== 1536) {
+      return Promise.resolve([]);
+    }
+    const vector = `[${input.vector.join(",")}]`;
+    const candidateLimit = Math.max(input.topK, input.topK * 10);
+    return this.prisma.$queryRaw<VectorSearchRow[]>`
+      WITH nearest AS MATERIALIZED (
+        SELECT
+          embedding."chunkId",
+          embedding.embedding <=> ${vector}::vector AS distance
+        FROM "knowledge_embeddings" embedding
+        JOIN "knowledge_chunks" candidate_chunk
+          ON candidate_chunk.id = embedding."chunkId"
+        WHERE embedding."organizationId" = ${input.organizationId}
+          AND candidate_chunk."organizationId" = ${input.organizationId}
+          AND candidate_chunk."knowledgeBaseId" IN (${Prisma.join(input.knowledgeBaseIds)})
+          AND embedding.embedding IS NOT NULL
+        ORDER BY embedding.embedding <=> ${vector}::vector
+        LIMIT ${candidateLimit}
+      )
+      SELECT
+        chunk.id AS "chunkId",
+        chunk."knowledgeBaseId",
+        kb.name AS "knowledgeBaseName",
+        chunk."chunkIndex",
+        chunk."chunkText",
+        chunk."tokenCount",
+        COALESCE(document.id, website.id, faq.id) AS "sourceId",
+        CASE
+          WHEN document.id IS NOT NULL THEN 'document'
+          WHEN website.id IS NOT NULL THEN 'website'
+          ELSE 'faq'
+        END AS "sourceType",
+        COALESCE(
+          NULLIF(document.name, ''),
+          document."originalFileName",
+          NULLIF(website.title, ''),
+          website.url,
+          faq.question
+        ) AS "sourceName",
+        1 - nearest.distance AS "relevanceScore"
+      FROM nearest
+      JOIN "knowledge_chunks" chunk ON chunk.id = nearest."chunkId"
+      JOIN "knowledge_bases" kb ON kb.id = chunk."knowledgeBaseId"
+      LEFT JOIN documents document
+        ON document.id = chunk."documentId" AND document."deletedAt" IS NULL
+      LEFT JOIN website_sources website
+        ON website.id = chunk."websiteSourceId"
+        AND website."deletedAt" IS NULL AND website.status = 'COMPLETED'
+      LEFT JOIN faq_entries faq
+        ON faq.id = chunk."faqEntryId"
+        AND faq."deletedAt" IS NULL AND faq.status = 'ACTIVE'
+      WHERE chunk."organizationId" = ${input.organizationId}
+        AND chunk."knowledgeBaseId" IN (${Prisma.join(input.knowledgeBaseIds)})
+        AND (document.id IS NOT NULL OR website.id IS NOT NULL OR faq.id IS NOT NULL)
+        AND 1 - nearest.distance >= ${input.threshold}
+      ORDER BY nearest.distance, chunk.id
+      LIMIT ${input.topK}
+    `;
   }
 
   createSearchEvent(input: {
@@ -130,4 +171,17 @@ export class RagRepository {
   }) {
     return this.prisma.auditEvent.create({ data: input });
   }
+}
+
+export interface VectorSearchRow {
+  chunkId: string;
+  knowledgeBaseId: string;
+  knowledgeBaseName: string;
+  sourceId: string;
+  sourceType: "document" | "website" | "faq";
+  sourceName: string;
+  chunkIndex: number;
+  chunkText: string;
+  tokenCount: number;
+  relevanceScore: number;
 }

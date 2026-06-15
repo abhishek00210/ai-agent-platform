@@ -1,8 +1,10 @@
 import { Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { openAsBlob } from "node:fs";
 import type {
   AiProvider,
   GenerateResponseInput,
   GenerateResponseResult,
+  TranscribeAudioResult,
 } from "./interfaces/ai-provider.interface";
 import { OpenAiConfigService } from "./openai-config.service";
 
@@ -23,6 +25,19 @@ interface ResponsesApiResponse {
 interface EmbeddingApiResponse {
   data: Array<{ index: number; embedding: number[] }>;
   model: string;
+}
+
+interface TranscriptionApiResponse {
+  text?: string;
+  language?: string;
+  duration?: number;
+  segments?: Array<{
+    speaker?: string;
+    start?: number;
+    end?: number;
+    text?: string;
+    confidence?: number;
+  }>;
 }
 
 @Injectable()
@@ -106,6 +121,61 @@ export class OpenAiProvider implements AiProvider {
     const body = (await response.json()) as EmbeddingApiResponse;
     const vectors = [...body.data].sort((a, b) => a.index - b.index).map((item) => item.embedding);
     return { model: body.model || model, dimensions: vectors[0]?.length ?? dimensions, vectors };
+  }
+
+  async transcribeAudio(input: {
+    filePath: string;
+    fileName: string;
+    language?: string;
+  }): Promise<TranscribeAudioResult> {
+    const model = this.openaiConfig.transcriptionModel();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), Math.max(this.openaiConfig.timeoutMs(), 120_000));
+    const form = new FormData();
+    form.set("file", await openAsBlob(input.filePath, { type: "audio/wav" }), input.fileName);
+    form.set("model", model);
+    form.set("response_format", "diarized_json");
+    form.set("chunking_strategy", "auto");
+    if (input.language) {
+      form.set("language", input.language);
+    }
+
+    let response: Response;
+    try {
+      response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.openaiConfig.apiKey()}` },
+        body: form,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      throw new ServiceUnavailableException(readNetworkError(error));
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (!response.ok) {
+      throw new ServiceUnavailableException(readOpenAiStatusMessage(response.status));
+    }
+
+    const body = (await response.json()) as TranscriptionApiResponse;
+    const segments = (body.segments ?? [])
+      .filter((segment) => segment.text?.trim())
+      .map((segment) => ({
+        speaker: segment.speaker ?? "UNKNOWN",
+        startMs: Math.max(0, Math.round((segment.start ?? 0) * 1000)),
+        endMs: Math.max(0, Math.round((segment.end ?? segment.start ?? 0) * 1000)),
+        text: segment.text!.trim(),
+        confidence: segment.confidence,
+      }));
+
+    return {
+      text: body.text?.trim() || segments.map((segment) => segment.text).join(" "),
+      model,
+      language: body.language,
+      durationSeconds: body.duration ? Math.round(body.duration) : undefined,
+      segments,
+    };
   }
 }
 

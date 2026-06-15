@@ -1,42 +1,44 @@
 import { ValidationPipe, VersioningType } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
-import compression from "compression";
-import helmet from "helmet";
+import { FastifyAdapter } from "@nestjs/platform-fastify";
+import type { NestFastifyApplication } from "@nestjs/platform-fastify";
+import compress from "@fastify/compress";
+import fastifyHelmet from "@fastify/helmet";
+import multipart from "@fastify/multipart";
 import { Logger } from "nestjs-pino";
 import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 import { RequestIdInterceptor } from "./common/interceptors/request-id.interceptor";
-import { SecurityHeadersMiddleware } from "./common/middleware/security-headers.middleware";
 import type { ApiConfig } from "./config/env.schema";
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, {
+  const adapter = new FastifyAdapter({
+    keepAliveTimeout: 72_000,
+    requestTimeout: 30_000,
+    connectionTimeout: 10_000,
+  });
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, {
     abortOnError: false,
     bufferLogs: true,
+    rawBody: true,
   });
   const config = app.get(ConfigService);
   const apiConfig = config.getOrThrow<ApiConfig>("api");
 
   app.useLogger(app.get(Logger));
-  app.use(helmet());
-  app.use(compression());
-  app.use(new SecurityHeadersMiddleware().use);
+  app.enableShutdownHooks();
+  await app.register(fastifyHelmet);
+  await app.register(multipart, {
+    limits: { fileSize: 25 * 1024 * 1024, files: 1 },
+  });
+  await app.register(compress, {
+    global: true,
+    threshold: 1024,
+    customTypes: /^(application\/json|text\/plain|text\/html)/,
+  });
   app.enableCors({
-    origin: (
-      origin: string | undefined,
-      callback: (error: Error | null, allow?: boolean) => void,
-    ) => {
-      if (
-        !origin ||
-        apiConfig.corsOrigins.includes("*") ||
-        apiConfig.corsOrigins.includes(origin)
-      ) {
-        callback(null, true);
-        return;
-      }
-      callback(null, true);
-    },
+    origin: apiConfig.corsOrigins.includes("*") ? true : apiConfig.corsOrigins,
     credentials: true,
   });
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });

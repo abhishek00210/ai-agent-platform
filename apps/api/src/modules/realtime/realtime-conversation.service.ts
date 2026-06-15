@@ -5,6 +5,7 @@ import { MessageRepository } from "../conversation/repositories/message.reposito
 import { estimateTokenCount } from "../embedding/chunking.service";
 import { MemoryService } from "../memory/memory.service";
 import type { TenantContext } from "../tenant/tenant.service";
+import { DeferredPersistenceService } from "./deferred-persistence.service";
 
 @Injectable()
 export class RealtimeConversationService {
@@ -12,6 +13,7 @@ export class RealtimeConversationService {
     private readonly conversations: ConversationRepository,
     private readonly messages: MessageRepository,
     private readonly memory: MemoryService,
+    private readonly persistence: DeferredPersistenceService,
   ) {}
 
   async create(context: TenantContext, agentId: string, streamSid: string) {
@@ -21,10 +23,12 @@ export class RealtimeConversationService {
       channel: "VOICE",
       sessionId: streamSid,
     });
-    await this.audit(context.organizationId, "voice.conversation_started", conversation.id, {
-      agentId,
-      streamSid,
-    });
+    this.persistence.enqueue(() =>
+      this.audit(context.organizationId, "voice.conversation_started", conversation.id, {
+        agentId,
+        streamSid,
+      }),
+    );
     return conversation;
   }
 

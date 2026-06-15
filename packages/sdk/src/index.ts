@@ -5,6 +5,14 @@ import type {
   AgentListResponse,
   AssignPhoneNumberAgentInput,
   CallDetails,
+  CallRecordingDetails,
+  CallRecordingDownloadAccess,
+  CallRecordingListQuery,
+  CallRecordingListResponse,
+  CallTranscriptDetails,
+  CallTranscriptListQuery,
+  CallTranscriptListResponse,
+  CallTranscriptSegment,
   CallListQuery,
   CallListResponse,
   CallSessionSummary,
@@ -577,6 +585,55 @@ export class ApiClient {
 
   async callRealtimeSessions(callId: string): Promise<RealtimeSessionSummary[]> {
     return this.request<RealtimeSessionSummary[]>(`/voice/calls/${callId}/realtime-sessions`);
+  }
+
+  async callRecordings(query: CallRecordingListQuery = {}): Promise<CallRecordingListResponse> {
+    return this.request<CallRecordingListResponse>(`/voice/recordings${toQuerySuffix(query)}`);
+  }
+
+  async callRecording(recordingId: string): Promise<CallRecordingDetails> {
+    return this.request<CallRecordingDetails>(`/voice/recordings/${recordingId}`);
+  }
+
+  async callRecordingDownload(recordingId: string): Promise<CallRecordingDownloadAccess> {
+    return this.request<CallRecordingDownloadAccess>(`/voice/recordings/${recordingId}/download`);
+  }
+
+  async deleteCallRecording(recordingId: string): Promise<{ success: true }> {
+    return this.request<{ success: true }>(`/voice/recordings/${recordingId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async callTranscripts(
+    query: CallTranscriptListQuery = {},
+  ): Promise<CallTranscriptListResponse> {
+    return this.request<CallTranscriptListResponse>(
+      `/voice/transcripts${toQuerySuffix(query)}`,
+    );
+  }
+
+  async callTranscript(transcriptId: string): Promise<CallTranscriptDetails> {
+    return this.request<CallTranscriptDetails>(`/voice/transcripts/${transcriptId}`);
+  }
+
+  async callTranscriptByCall(callId: string): Promise<CallTranscriptDetails | null> {
+    return this.request<CallTranscriptDetails | null>(`/voice/transcripts/call/${callId}`);
+  }
+
+  async callTranscriptSegments(transcriptId: string): Promise<CallTranscriptSegment[]> {
+    return this.request<CallTranscriptSegment[]>(
+      `/voice/transcripts/${transcriptId}/segments`,
+    );
+  }
+
+  async reprocessCallTranscript(
+    transcriptId: string,
+  ): Promise<{ success: true; status: "PENDING" }> {
+    return this.request<{ success: true; status: "PENDING" }>(
+      `/voice/transcripts/${transcriptId}/reprocess`,
+      { method: "POST" },
+    );
   }
 
   async widgets(query: WidgetListQuery = {}): Promise<WidgetListResponse> {

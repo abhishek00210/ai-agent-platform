@@ -189,6 +189,7 @@ function createService(deps: ReturnType<typeof createDependencies>) {
     deps.phoneNumbers as never,
     deps.twilio as never,
     deps.webhookUrls as never,
+    { invalidate: jest.fn() } as never,
   );
 }
 

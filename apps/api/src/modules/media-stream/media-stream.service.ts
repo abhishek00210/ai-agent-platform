@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { RecordingService } from "../recording/recording.service";
 import { RealtimeGateway } from "../realtime/realtime.gateway";
 import { AudioPacketService } from "./audio-packet.service";
 import type {
@@ -18,6 +19,7 @@ export class MediaStreamService {
     private readonly lifecycle: StreamLifecycleService,
     private readonly audioPackets: AudioPacketService,
     private readonly realtime: RealtimeGateway,
+    private readonly recordings: RecordingService,
   ) {}
 
   registerConnection(connectionId: string) {
@@ -55,6 +57,7 @@ export class MediaStreamService {
     if (connection?.streamSid) {
       await Promise.all([
         this.realtime.stop(connection.streamSid),
+        this.stopRecording(connection.streamSid),
         this.lifecycle.disconnect(connection.streamSid),
       ]);
     }
@@ -75,6 +78,9 @@ export class MediaStreamService {
       connectedAt: new Date(),
       streamSid: event.start.streamSid,
       twilioCallSid: event.start.callSid,
+    });
+    void this.recordings.startForSession(session).catch((error) => {
+      this.logger.warn(`Recording startup failed: ${readError(error)}`);
     });
     await this.realtime.start({
       streamSid: event.start.streamSid,
@@ -98,9 +104,19 @@ export class MediaStreamService {
     const [result] = await Promise.all([
       this.lifecycle.stop(event),
       this.realtime.stop(event.streamSid),
+      this.stopRecording(event.streamSid),
     ]);
     this.connections.delete(connectionId);
     return result;
+  }
+
+  private async stopRecording(streamSid: string) {
+    try {
+      return await this.recordings.stopForStream(streamSid);
+    } catch (error) {
+      this.logger.warn(`Recording stop failed: ${readError(error)}`);
+      return null;
+    }
   }
 }
 
@@ -124,4 +140,8 @@ function parseTwilioEvent(event: unknown): TwilioMediaStreamEvent {
 
 function assertNever(value: never): never {
   throw new BadRequestException(`Unhandled Twilio media event: ${JSON.stringify(value)}`);
+}
+
+function readError(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
 }

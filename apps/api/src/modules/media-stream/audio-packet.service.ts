@@ -6,7 +6,7 @@ import { CallSessionService } from "./call-session.service";
 export class AudioPacketService {
   constructor(private readonly sessions: CallSessionService) {}
 
-  async process(event: TwilioMediaEvent) {
+  process(event: TwilioMediaEvent) {
     if (!event.streamSid) {
       throw new BadRequestException("Stream SID is required for media packets.");
     }

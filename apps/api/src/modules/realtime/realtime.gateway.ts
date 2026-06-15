@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createHash } from "node:crypto";
 import { TwilioService } from "../twilio/twilio.service";
@@ -10,7 +10,7 @@ import { RealtimeSessionService, voiceTenant } from "./realtime-session.service"
 import type { RealtimeConnection } from "./realtime.types";
 
 @Injectable()
-export class RealtimeGateway {
+export class RealtimeGateway implements OnModuleDestroy {
   private readonly logger = new Logger(RealtimeGateway.name);
   private readonly active = new Map<string, RealtimeConnection>();
   private readonly starting = new Map<string, Promise<{ id: string }>>();
@@ -67,21 +67,22 @@ export class RealtimeGateway {
       context,
       sendToTwilio: input.sendToTwilio,
       closeTwilio: input.closeTwilio,
+      ready: false,
+      startupAudio: [],
     };
     this.active.set(input.streamSid, connection);
 
     try {
-      await this.connections.connect(
-        input.streamSid,
-        (event) => this.events.process(connection, event),
-        (reason) => this.handleOpenAiClose(input.streamSid, reason),
-        (reason) => this.fail(input.streamSid, reason, true),
-        safetyIdentifier(context.organizationId, context.callId),
-      );
-      const memoryInstructions = await this.agentContext.memoryInstructions(
-        created.tenant,
-        created.conversationId,
-      );
+      const [, memoryInstructions] = await Promise.all([
+        this.connections.connect(
+          input.streamSid,
+          (event) => this.events.process(connection, event),
+          (reason) => this.handleOpenAiClose(input.streamSid, reason),
+          (reason) => this.fail(input.streamSid, reason, true),
+          safetyIdentifier(context.organizationId, context.callId),
+        ),
+        this.agentContext.memoryInstructions(created.tenant, created.conversationId),
+      ]);
       this.connections.send(input.streamSid, {
         type: "session.update",
         session: {
@@ -103,10 +104,13 @@ export class RealtimeGateway {
               },
               turn_detection: {
                 type: "server_vad",
+                threshold: this.config.get<number>("openai.realtimeVadThreshold") ?? 0.5,
                 create_response: false,
                 interrupt_response: true,
-                prefix_padding_ms: 300,
-                silence_duration_ms: 500,
+                prefix_padding_ms:
+                  this.config.get<number>("openai.realtimeVadPrefixPaddingMs") ?? 300,
+                silence_duration_ms:
+                  this.config.get<number>("openai.realtimeVadSilenceDurationMs") ?? 400,
               },
             },
             output: {
@@ -116,6 +120,10 @@ export class RealtimeGateway {
           },
         },
       });
+      connection.ready = true;
+      for (const payload of connection.startupAudio.splice(0)) {
+        this.forwardAudio(connection, payload);
+      }
       return created.session;
     } catch (error) {
       await this.fail(input.streamSid, readError(error), true);
@@ -128,8 +136,21 @@ export class RealtimeGateway {
     if (!connection) {
       return;
     }
+    if (!connection.ready) {
+      const maxPackets =
+        this.config.get<number>("openai.realtimeMaxBufferedAudioPackets") ?? 100;
+      if (connection.startupAudio.length >= maxPackets) {
+        connection.startupAudio.shift();
+      }
+      connection.startupAudio.push(payload);
+      return;
+    }
+    this.forwardAudio(connection, payload);
+  }
+
+  private forwardAudio(connection: RealtimeConnection, payload: string) {
     this.audioBridge.forwardTwilioAudio({
-      streamSid,
+      streamSid: connection.streamSid,
       realtimeSessionId: connection.realtimeSessionId,
       payload,
     });
@@ -147,6 +168,19 @@ export class RealtimeGateway {
 
   has(streamSid: string) {
     return this.active.has(streamSid);
+  }
+
+  async onModuleDestroy() {
+    await Promise.allSettled(
+      [...this.active.entries()].map(([streamSid, connection]) =>
+        this.terminate(
+          streamSid,
+          connection,
+          "disconnected",
+          "Application shutdown.",
+        ),
+      ),
+    );
   }
 
   private async handleOpenAiClose(streamSid: string, reason: string) {

@@ -17,6 +17,7 @@ describe("IncomingCallService", () => {
       To: "+1 (555) 123-4567",
       Direction: "inbound",
     });
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(deps.routing.resolve).toHaveBeenCalledWith("+15551234567");
     expect(deps.calls.createInbound).toHaveBeenCalledWith(
@@ -50,6 +51,7 @@ describe("IncomingCallService", () => {
       From: "+14155551234",
       To: "+15551234567",
     });
+    await new Promise((resolve) => setImmediate(resolve));
 
     expect(deps.calls.createInbound).not.toHaveBeenCalled();
     expect(deps.calls.createAuditEvent).toHaveBeenCalledWith(
@@ -65,6 +67,11 @@ function createService(deps: ReturnType<typeof createDependencies>) {
     deps.phoneNumbers as never,
     deps.calls as never,
     deps.twiml as never,
+    {
+      now: jest.fn(() => performance.now()),
+      observe: jest.fn(),
+      increment: jest.fn(),
+    } as never,
   );
 }
 

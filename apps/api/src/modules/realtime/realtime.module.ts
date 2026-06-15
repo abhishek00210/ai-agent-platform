@@ -4,9 +4,11 @@ import { ConversationRepository } from "../conversation/repositories/conversatio
 import { MessageRepository } from "../conversation/repositories/message.repository";
 import { MemoryModule } from "../memory/memory.module";
 import { RagModule } from "../rag/rag.module";
+import { RecordingModule } from "../recording/recording.module";
 import { TenantModule } from "../tenant/tenant.module";
 import { TwilioModule } from "../twilio/twilio.module";
 import { RealtimeAgentContextService } from "./realtime-agent-context.service";
+import { DeferredPersistenceService } from "./deferred-persistence.service";
 import { RealtimeAudioBridge } from "./realtime-audio-bridge";
 import { RealtimeConnectionManager } from "./realtime-connection-manager";
 import { RealtimeConversationService } from "./realtime-conversation.service";
@@ -17,10 +19,11 @@ import { RealtimeSessionService } from "./realtime-session.service";
 import { RealtimeSessionRepository } from "./repositories/realtime-session.repository";
 
 @Module({
-  imports: [AuthModule, TenantModule, RagModule, MemoryModule, TwilioModule],
+  imports: [AuthModule, TenantModule, RagModule, MemoryModule, TwilioModule, RecordingModule],
   controllers: [RealtimeController],
   providers: [
     RealtimeGateway,
+    DeferredPersistenceService,
     RealtimeSessionService,
     RealtimeConnectionManager,
     RealtimeAudioBridge,

@@ -4,12 +4,18 @@ import type { TenantContext } from "../tenant/tenant.service";
 import { RealtimeConversationService } from "./realtime-conversation.service";
 import type { RealtimeAgentContext } from "./realtime.types";
 import { RealtimeSessionRepository } from "./repositories/realtime-session.repository";
+import { DeferredPersistenceService } from "./deferred-persistence.service";
 
 @Injectable()
 export class RealtimeSessionService {
+  private readonly audioCounters = new Map<
+    string,
+    { sent: number; received: number }
+  >();
   constructor(
     private readonly sessions: RealtimeSessionRepository,
     private readonly conversations: RealtimeConversationService,
+    private readonly persistence: DeferredPersistenceService,
   ) {}
 
   async create(context: RealtimeAgentContext, streamSid: string) {
@@ -31,11 +37,14 @@ export class RealtimeSessionService {
       agentId: context.agentId,
       conversationId: conversation.id,
     });
-    await this.audit(context.organizationId, "realtime.session_created", session.id, {
-      callId: context.callId,
-      callSessionId: context.callSessionId,
-      streamSid,
-    });
+    this.audioCounters.set(session.id, { sent: 0, received: 0 });
+    this.persistence.enqueue(() =>
+      this.audit(context.organizationId, "realtime.session_created", session.id, {
+        callId: context.callId,
+        callSessionId: context.callSessionId,
+        streamSid,
+      }),
+    );
     return { session, conversationId: conversation.id, tenant };
   }
 
@@ -48,7 +57,13 @@ export class RealtimeSessionService {
   }
 
   async disconnected(realtimeSessionId: string, tenant: TenantContext, conversationId: string) {
-    const result = await this.sessions.markClosedIfActive(realtimeSessionId, "DISCONNECTED");
+    const counters = this.takeAudioCounters(realtimeSessionId);
+    const result = await this.sessions.markClosedIfActive(
+      realtimeSessionId,
+      "DISCONNECTED",
+      counters.sent,
+      counters.received,
+    );
     await this.conversations.close(tenant, conversationId);
     if (result.changed) {
       await this.audit(tenant.organizationId, "realtime.session_disconnected", realtimeSessionId);
@@ -62,7 +77,13 @@ export class RealtimeSessionService {
     conversationId: string,
     reason: string,
   ) {
-    const result = await this.sessions.markClosedIfActive(realtimeSessionId, "FAILED");
+    const counters = this.takeAudioCounters(realtimeSessionId);
+    const result = await this.sessions.markClosedIfActive(
+      realtimeSessionId,
+      "FAILED",
+      counters.sent,
+      counters.received,
+    );
     await this.conversations.close(tenant, conversationId);
     if (result.changed) {
       await this.audit(tenant.organizationId, "realtime.session_failed", realtimeSessionId, {
@@ -73,11 +94,15 @@ export class RealtimeSessionService {
   }
 
   recordAudioSent(realtimeSessionId: string) {
-    return this.sessions.incrementAudioSent(realtimeSessionId);
+    const counters = this.audioCounters.get(realtimeSessionId) ?? { sent: 0, received: 0 };
+    counters.sent += 1;
+    this.audioCounters.set(realtimeSessionId, counters);
   }
 
   recordAudioReceived(realtimeSessionId: string) {
-    return this.sessions.incrementAudioReceived(realtimeSessionId);
+    const counters = this.audioCounters.get(realtimeSessionId) ?? { sent: 0, received: 0 };
+    counters.received += 1;
+    this.audioCounters.set(realtimeSessionId, counters);
   }
 
   recordLatency(realtimeSessionId: string, latencyMs: number) {
@@ -105,6 +130,12 @@ export class RealtimeSessionService {
       entityId,
       metadata,
     });
+  }
+
+  private takeAudioCounters(realtimeSessionId: string) {
+    const counters = this.audioCounters.get(realtimeSessionId) ?? { sent: 0, received: 0 };
+    this.audioCounters.delete(realtimeSessionId);
+    return counters;
   }
 }
 

@@ -3,6 +3,8 @@ import { AuthModule } from "../auth/auth.module";
 import { TenantModule } from "../tenant/tenant.module";
 import { MediaStreamModule } from "../media-stream/media-stream.module";
 import { RealtimeModule } from "../realtime/realtime.module";
+import { RecordingModule } from "../recording/recording.module";
+import { TranscriptionModule } from "../transcription/transcription.module";
 import { TwilioModule } from "../twilio/twilio.module";
 import { CallController } from "./call.controller";
 import { CallRoutingService } from "./call-routing.service";
@@ -20,7 +22,15 @@ import { VoiceController } from "./voice.controller";
 import { VoiceService } from "./voice.service";
 
 @Module({
-  imports: [AuthModule, TenantModule, TwilioModule, MediaStreamModule, RealtimeModule],
+  imports: [
+    AuthModule,
+    TenantModule,
+    TwilioModule,
+    MediaStreamModule,
+    RealtimeModule,
+    RecordingModule,
+    TranscriptionModule,
+  ],
   controllers: [VoiceController, PhoneNumberController, CallController, IncomingCallController],
   providers: [
     VoiceService,

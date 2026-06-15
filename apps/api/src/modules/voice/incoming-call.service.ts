@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import type { Prisma } from "../../../generated/prisma";
+import { RealtimeMetricsService } from "../../common/metrics/realtime-metrics.service";
 import { CallRoutingService } from "./call-routing.service";
 import { normalizeE164 } from "./e164";
 import { CallRepository } from "./repositories/call.repository";
@@ -13,14 +14,19 @@ export class IncomingCallService {
     private readonly phoneNumbers: PhoneNumberRepository,
     private readonly calls: CallRepository,
     private readonly twiml: TwiMLResponseService,
+    private readonly metrics: RealtimeMetricsService,
   ) {}
 
   async handle(payload: Record<string, unknown>): Promise<string> {
+    const webhookStartedAt = this.metrics.now();
     const input = parseWebhook(payload);
     const calledNumber = normalizeE164(input.To);
+    const lookupStartedAt = this.metrics.now();
     const route = await this.routing.resolve(calledNumber);
+    this.metrics.observe("db_lookup_ms", lookupStartedAt, Boolean(route));
     if (!route || !route.agentId || !route.agent) {
-      await this.auditRoutingFailure(calledNumber, input.CallSid);
+      this.defer(() => this.auditRoutingFailure(calledNumber, input.CallSid));
+      this.metrics.observe("webhook_processing_ms", webhookStartedAt, false);
       return this.twiml.unavailable();
     }
 
@@ -37,22 +43,25 @@ export class IncomingCallService {
       } satisfies Prisma.InputJsonObject,
     });
 
-    await Promise.all([
-      this.audit(route.organizationId, "call.incoming_received", call.id, {
-        twilioCallSid: input.CallSid,
-        callerNumber: input.From,
-        calledNumber,
-      }),
-      this.audit(route.organizationId, "call.record_created", call.id, {
-        status: call.status,
-      }),
-      this.audit(route.organizationId, "call.routed", call.id, {
-        agentId: route.agentId,
-        phoneNumberId: route.id,
-      }),
-      this.calls.updateStatus(route.organizationId, call.id, "ROUTING"),
-    ]);
+    this.defer(() =>
+      Promise.all([
+        this.audit(route.organizationId, "call.incoming_received", call.id, {
+          twilioCallSid: input.CallSid,
+          callerNumber: input.From,
+          calledNumber,
+        }),
+        this.audit(route.organizationId, "call.record_created", call.id, {
+          status: call.status,
+        }),
+        this.audit(route.organizationId, "call.routed", call.id, {
+          agentId: route.agentId,
+          phoneNumberId: route.id,
+        }),
+        this.calls.updateStatus(route.organizationId, call.id, "ROUTING"),
+      ]),
+    );
 
+    this.metrics.observe("webhook_processing_ms", webhookStartedAt);
     return this.twiml.routing();
   }
 
@@ -79,6 +88,14 @@ export class IncomingCallService {
       entityType: "Call",
       entityId,
       metadata,
+    });
+  }
+
+  private defer(task: () => Promise<unknown>) {
+    setImmediate(() => {
+      void task().catch(() => {
+        this.metrics.increment("deferred_persistence_failures");
+      });
     });
   }
 }

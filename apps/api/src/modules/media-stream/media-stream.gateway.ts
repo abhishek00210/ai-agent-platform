@@ -8,6 +8,8 @@ import { MediaStreamService } from "./media-stream.service";
 
 const TWILIO_MEDIA_PATH = "/ws/twilio-media";
 const WEBSOCKET_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+const MAX_WEBSOCKET_FRAME_BYTES = 128 * 1024;
+const MAX_WEBSOCKET_BUFFER_BYTES = 256 * 1024;
 
 @Injectable()
 export class MediaStreamGateway implements OnModuleInit, OnModuleDestroy {
@@ -68,6 +70,9 @@ export class MediaStreamGateway implements OnModuleInit, OnModuleDestroy {
 
     socket.on("data", (chunk) => {
       try {
+        if (buffer.length + chunk.length > MAX_WEBSOCKET_BUFFER_BYTES) {
+          throw new Error("WebSocket input buffer exceeded.");
+        }
         buffer = Buffer.concat([buffer, chunk]);
         const result = extractFrames(buffer);
         buffer = result.remaining;
@@ -236,6 +241,9 @@ function extractFrames(buffer: Buffer<ArrayBufferLike>): {
     }
 
     const maskLength = masked ? 4 : 0;
+    if (payloadLength > MAX_WEBSOCKET_FRAME_BYTES) {
+      throw new Error("WebSocket frame exceeded.");
+    }
     const frameLength = headerLength + maskLength + payloadLength;
     if (buffer.length - offset < frameLength) {
       break;

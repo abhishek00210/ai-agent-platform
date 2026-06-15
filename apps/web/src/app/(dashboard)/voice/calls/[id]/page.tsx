@@ -1,10 +1,19 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, FileAudio, FileText, PhoneCall, Radio, Sparkles } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  Download,
+  FileAudio,
+  FileText,
+  PhoneCall,
+  Radio,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@ai-agent-platform/ui";
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
@@ -16,6 +25,7 @@ import { useRealtimeSessionStore } from "@/store/realtime-session-store";
 
 export default function CallDetailsPage() {
   const params = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   const call = useQuery({
     queryKey: ["voice-call", params.id],
     queryFn: () => authApi.call(params.id),
@@ -31,6 +41,30 @@ export default function CallDetailsPage() {
       query.state.data?.some((session) => ["CONNECTING", "CONNECTED"].includes(session.status))
         ? 3000
         : false,
+  });
+  const recordings = useQuery({
+    queryKey: ["voice-call-recordings", params.id],
+    queryFn: () => authApi.callRecordings({ callId: params.id }),
+    refetchInterval: (query) =>
+      query.state.data?.data.some((recording) =>
+        ["PENDING", "RECORDING", "PROCESSING"].includes(recording.status),
+      )
+        ? 3000
+        : false,
+  });
+  const transcript = useQuery({
+    queryKey: ["voice-call-transcript", params.id],
+    queryFn: () => authApi.callTranscriptByCall(params.id),
+    refetchInterval: (query) =>
+      ["PENDING", "PROCESSING"].includes(query.state.data?.status ?? "") ? 3000 : false,
+  });
+  const deleteRecording = useMutation({
+    mutationFn: authApi.deleteCallRecording,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["voice-call-recordings", params.id] });
+      void queryClient.invalidateQueries({ queryKey: ["voice-recordings"] });
+      void queryClient.invalidateQueries({ queryKey: ["voice-dashboard"] });
+    },
   });
   const setSelectedCall = useCallStore((state) => state.setSelectedCall);
   const setSessions = useCallSessionStore((state) => state.setSessions);
@@ -224,9 +258,13 @@ export default function CallDetailsPage() {
           </section>
 
           <section className="grid gap-6 md:grid-cols-3">
-            <FuturePanel icon={FileAudio} title="Recording" />
-            <FuturePanel icon={FileText} title="Transcript" />
-            <FuturePanel icon={Sparkles} title="AI Summary" />
+            <RecordingPanel
+              loading={recordings.isLoading}
+              recordings={recordings.data?.data ?? []}
+              onDelete={(recordingId) => deleteRecording.mutate(recordingId)}
+              deleting={deleteRecording.isPending}
+            />
+            <TranscriptPanel loading={transcript.isLoading} transcript={transcript.data ?? null} />
           </section>
         </>
       ) : (
@@ -237,6 +275,119 @@ export default function CallDetailsPage() {
         />
       )}
     </div>
+  );
+}
+
+function RecordingPanel({
+  loading,
+  recordings,
+  onDelete,
+  deleting,
+}: {
+  loading: boolean;
+  recordings: Array<{
+    id: string;
+    fileName: string;
+    status: string;
+    durationSeconds: number | null;
+    fileSizeBytes: number | null;
+    recordingCompletedAt: string | null;
+    createdAt: string;
+  }>;
+  onDelete: (recordingId: string) => void;
+  deleting: boolean;
+}) {
+  const download = useMutation({
+    mutationFn: authApi.callRecordingDownload,
+    onSuccess: (access) => {
+      window.open(access.url, "_blank", "noopener,noreferrer");
+    },
+  });
+
+  return (
+    <div className="rounded-md border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex items-center gap-3">
+        <FileAudio className="h-5 w-5 text-zinc-500" aria-hidden="true" />
+        <div>
+          <h2 className="text-base font-semibold">Recording</h2>
+          <p className="mt-1 text-sm text-zinc-500">Asynchronous playback and storage status.</p>
+        </div>
+      </div>
+
+      <div className="mt-5 space-y-4">
+        {loading ? <SkeletonBlock className="h-24" /> : null}
+        {!loading && recordings.length === 0 ? (
+          <p className="text-sm text-zinc-500">
+            No recording has been finalized for this call yet.
+          </p>
+        ) : null}
+        {recordings.map((recording) => (
+          <div key={recording.id} className="rounded-md border border-zinc-200 p-4 dark:border-zinc-800">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">{recording.fileName}</p>
+                <p className="mt-1 text-xs text-zinc-500">{recording.status}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <PlaybackButton recordingId={recording.id} disabled={recording.status !== "AVAILABLE"} />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  disabled={recording.status !== "AVAILABLE" || download.isPending}
+                  onClick={() => download.mutate(recording.id)}
+                  aria-label="Download recording"
+                >
+                  <Download className="h-4 w-4" aria-hidden="true" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  disabled={deleting || recording.status === "DELETED"}
+                  onClick={() => {
+                    if (window.confirm("Delete this recording?")) {
+                      onDelete(recording.id);
+                    }
+                  }}
+                  aria-label="Delete recording"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+              <Detail label="Duration" value={formatRecordingDuration(recording.durationSeconds)} />
+              <Detail label="Size" value={formatBytes(recording.fileSizeBytes)} />
+              <Detail
+                label="Completed"
+                value={
+                  recording.recordingCompletedAt
+                    ? new Date(recording.recordingCompletedAt).toLocaleString()
+                    : "Processing"
+                }
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PlaybackButton({ recordingId, disabled }: { recordingId: string; disabled: boolean }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const access = useMutation({
+    mutationFn: authApi.callRecordingDownload,
+    onSuccess: (result) => setUrl(result.url),
+  });
+
+  if (url) {
+    return <audio controls src={url} className="h-9 w-44" />;
+  }
+
+  return (
+    <Button variant="outline" disabled={disabled || access.isPending} onClick={() => access.mutate(recordingId)}>
+      Play
+    </Button>
   );
 }
 
@@ -259,12 +410,66 @@ function formatDuration(session: { connectedAt: string | null; disconnectedAt: s
   return `${Math.max(0, Math.round((end.getTime() - started.getTime()) / 1000))}s`;
 }
 
-function FuturePanel({ icon: Icon, title }: { icon: typeof FileAudio; title: string }) {
+function formatRecordingDuration(value: number | null) {
+  return value === null ? "Pending" : `${value}s`;
+}
+
+function formatBytes(value: number | null) {
+  if (value === null) {
+    return "Pending";
+  }
+  if (value < 1024) {
+    return `${value} B`;
+  }
+  if (value < 1024 * 1024) {
+    return `${(value / 1024).toFixed(1)} KB`;
+  }
+  return `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function TranscriptPanel({
+  loading,
+  transcript,
+}: {
+  loading: boolean;
+  transcript: Awaited<ReturnType<typeof authApi.callTranscriptByCall>> | null;
+}) {
+  if (loading) {
+    return <SkeletonBlock className="h-48 md:col-span-2" />;
+  }
+
   return (
-    <div className="rounded-md border border-dashed border-zinc-200 p-6 dark:border-zinc-800">
-      <Icon className="h-5 w-5 text-zinc-400" aria-hidden="true" />
-      <h2 className="mt-4 text-sm font-semibold">{title}</h2>
-      <p className="mt-2 text-sm text-zinc-500">Available in a later voice phase.</p>
+    <div className="rounded-md border border-zinc-200 p-6 dark:border-zinc-800 md:col-span-2">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <FileText className="h-5 w-5 text-zinc-400" aria-hidden="true" />
+          <h2 className="mt-3 text-sm font-semibold">Transcript and Summary</h2>
+        </div>
+        {transcript ? (
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/voice/transcripts/${transcript.id}`}>View transcript</Link>
+          </Button>
+        ) : null}
+      </div>
+      {transcript ? (
+        <>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs text-zinc-500">
+            <span>{transcript.status}</span>
+            <span>{transcript.wordCount.toLocaleString()} words</span>
+            <span>{transcript.segmentCount} segments</span>
+          </div>
+          <p className="mt-4 line-clamp-5 whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+            {transcript.summary ??
+              (transcript.status === "FAILED"
+                ? transcript.failureReason
+                : "Transcription is processing in the background.")}
+          </p>
+        </>
+      ) : (
+        <p className="mt-4 text-sm text-zinc-500">
+          A transcript will appear automatically after the recording is uploaded.
+        </p>
+      )}
     </div>
   );
 }

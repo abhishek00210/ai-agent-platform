@@ -28,6 +28,15 @@ export type TwilioConnectionStatus = "CONNECTED" | "DISCONNECTED";
 export type CallDirection = "INBOUND" | "OUTBOUND";
 export type CallStatus = "RINGING" | "ROUTING" | "CONNECTED" | "COMPLETED" | "FAILED" | "MISSED";
 export type CallSessionStatus = "CONNECTING" | "CONNECTED" | "DISCONNECTED" | "FAILED";
+export type RecordingStatus =
+  | "PENDING"
+  | "RECORDING"
+  | "PROCESSING"
+  | "AVAILABLE"
+  | "FAILED"
+  | "DELETED";
+export type TranscriptStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+export type SpeakerType = "USER" | "ASSISTANT" | "SYSTEM" | "UNKNOWN";
 
 export interface OrganizationSummary {
   id: string;
@@ -271,6 +280,127 @@ export interface CallSummary {
 
 export type CallDetails = CallSummary;
 
+export interface CallRecordingSummary {
+  id: string;
+  organizationId: string;
+  callId: string;
+  callSessionId: string;
+  twilioCallSid: string;
+  storageProvider: string | null;
+  fileName: string;
+  mimeType: string;
+  durationSeconds: number | null;
+  fileSizeBytes: number | null;
+  status: RecordingStatus;
+  recordingStartedAt: string | null;
+  recordingCompletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  call?: {
+    id: string;
+    callerNumber: string;
+    calledNumber: string;
+    startedAt: string;
+    agent: {
+      id: string;
+      name: string;
+      status: AgentStatus;
+    };
+  };
+}
+
+export type CallRecordingDetails = CallRecordingSummary;
+
+export interface CallRecordingListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  data: CallRecordingSummary[];
+}
+
+export interface CallRecordingListQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: RecordingStatus;
+  callId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface CallRecordingDownloadAccess {
+  url: string;
+  expiresInSeconds: number;
+}
+
+export interface CallTranscriptSegment {
+  id: string;
+  transcriptId: string;
+  speaker: SpeakerType;
+  startMs: number;
+  endMs: number;
+  text: string;
+  confidence: number | null;
+  sequence: number;
+  createdAt: string;
+}
+
+export interface CallTranscriptSummary {
+  id: string;
+  organizationId: string;
+  callId: string;
+  callRecordingId: string;
+  conversationId: string | null;
+  status: TranscriptStatus;
+  language: string | null;
+  provider: string | null;
+  durationSeconds: number | null;
+  wordCount: number;
+  confidence: number | null;
+  fullText: string;
+  summary: string | null;
+  failureReason: string | null;
+  processingTimeMs: number | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  segmentCount: number;
+  call?: {
+    id: string;
+    callerNumber: string;
+    calledNumber: string;
+    startedAt: string;
+    agent: { id: string; name: string; status: AgentStatus };
+  };
+  callRecording?: {
+    id: string;
+    fileName: string;
+    status: RecordingStatus;
+    durationSeconds: number | null;
+  };
+}
+
+export type CallTranscriptDetails = CallTranscriptSummary;
+
+export interface CallTranscriptListResponse {
+  total: number;
+  page: number;
+  limit: number;
+  data: CallTranscriptSummary[];
+}
+
+export interface CallTranscriptListQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: TranscriptStatus;
+  callId?: string;
+  agentId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
 export interface CallSessionSummary {
   id: string;
   callId: string;
@@ -348,6 +478,15 @@ export interface VoiceDashboardStats {
   realtimeAudioPacketsSent: number;
   realtimeAudioPacketsReceived: number;
   averageRealtimeLatencyMs: number;
+  totalRecordings: number;
+  availableRecordings: number;
+  failedRecordings: number;
+  recordingStorageBytes: number;
+  totalTranscripts: number;
+  completedTranscripts: number;
+  processingTranscripts: number;
+  failedTranscripts: number;
+  averageTranscriptConfidence: number | null;
   callDurationSeconds: number;
   bookings: number;
   leads: number;

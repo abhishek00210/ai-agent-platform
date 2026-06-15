@@ -4,6 +4,14 @@ import type {
   AgentListQuery,
   AgentListResponse,
   CallDetails,
+  CallRecordingDetails,
+  CallRecordingDownloadAccess,
+  CallRecordingListQuery,
+  CallRecordingListResponse,
+  CallTranscriptDetails,
+  CallTranscriptListQuery,
+  CallTranscriptListResponse,
+  CallTranscriptSegment,
   CallListQuery,
   CallListResponse,
   CallSessionSummary,
@@ -483,6 +491,38 @@ export const authApi = {
   },
   callRealtimeSessions(callId: string) {
     return apiRequest<RealtimeSessionSummary[]>(`/voice/calls/${callId}/realtime-sessions`);
+  },
+  callRecordings(query: CallRecordingListQuery = {}) {
+    return apiRequest<CallRecordingListResponse>(`/voice/recordings${toQuerySuffix(query)}`);
+  },
+  callRecording(recordingId: string) {
+    return apiRequest<CallRecordingDetails>(`/voice/recordings/${recordingId}`);
+  },
+  callRecordingDownload(recordingId: string) {
+    return apiRequest<CallRecordingDownloadAccess>(`/voice/recordings/${recordingId}/download`);
+  },
+  deleteCallRecording(recordingId: string) {
+    return apiRequest<{ success: true }>(`/voice/recordings/${recordingId}`, {
+      method: "DELETE",
+    });
+  },
+  callTranscripts(query: CallTranscriptListQuery = {}) {
+    return apiRequest<CallTranscriptListResponse>(`/voice/transcripts${toQuerySuffix(query)}`);
+  },
+  callTranscript(transcriptId: string) {
+    return apiRequest<CallTranscriptDetails>(`/voice/transcripts/${transcriptId}`);
+  },
+  callTranscriptByCall(callId: string) {
+    return apiRequest<CallTranscriptDetails | null>(`/voice/transcripts/call/${callId}`);
+  },
+  callTranscriptSegments(transcriptId: string) {
+    return apiRequest<CallTranscriptSegment[]>(`/voice/transcripts/${transcriptId}/segments`);
+  },
+  reprocessCallTranscript(transcriptId: string) {
+    return apiRequest<{ success: true; status: "PENDING" }>(
+      `/voice/transcripts/${transcriptId}/reprocess`,
+      { method: "POST" },
+    );
   },
   widgets(query: WidgetListQuery = {}) {
     return apiRequest<WidgetListResponse>(`/widgets${toQuerySuffix(query)}`);

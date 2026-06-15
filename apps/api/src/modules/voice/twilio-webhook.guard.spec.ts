@@ -67,7 +67,9 @@ function contextFixture(signature?: string) {
   return {
     switchToHttp: () => ({
       getRequest: () => ({
-        header: (name: string) => (name === "X-Twilio-Signature" ? signature : undefined),
+        headers: {
+          "x-twilio-signature": signature,
+        },
         body: {
           CallSid: "CA123",
           From: "+14155551234",

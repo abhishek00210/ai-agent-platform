@@ -12,7 +12,7 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
-import type { Request } from "express";
+import type { FastifyRequest } from "fastify";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import type { JwtPayload } from "../auth/auth.types";
@@ -70,14 +70,14 @@ export class PublicWidgetController {
   constructor(private readonly widgets: WidgetService) {}
 
   @Post("init")
-  init(@Body() body: PublicWidgetInitDto, @Req() request: Request) {
+  init(@Body() body: PublicWidgetInitDto, @Req() request: FastifyRequest) {
     return this.widgets.initialize(body, { ip: request.ip });
   }
 
   @Post("conversation")
   conversation(
     @Body() body: PublicWidgetConversationDto,
-    @Req() request: Request,
+    @Req() request: FastifyRequest,
     @Headers("user-agent") userAgent?: string,
   ) {
     return this.widgets.createVisitorConversation(body, {
@@ -89,7 +89,7 @@ export class PublicWidgetController {
   @Post("chat")
   chat(
     @Body() body: PublicWidgetChatDto,
-    @Req() request: Request,
+    @Req() request: FastifyRequest,
     @Headers("user-agent") userAgent?: string,
   ) {
     return this.widgets.sendMessage(body, {

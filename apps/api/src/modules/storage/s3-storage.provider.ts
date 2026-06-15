@@ -1,5 +1,8 @@
 import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { createWriteStream } from "node:fs";
+import { pipeline } from "node:stream/promises";
+import type { Readable } from "node:stream";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -89,6 +92,20 @@ export class S3StorageProvider implements StorageProvider {
     };
   }
 
+  async downloadToFile(key: string, destinationPath: string): Promise<void> {
+    this.assertConfigured();
+    const result = await this.client.send(
+      new GetObjectCommand({
+        Bucket: this.bucketName(),
+        Key: key,
+      }),
+    );
+    if (!result.Body) {
+      throw new ServiceUnavailableException("Stored object did not return a body.");
+    }
+    await pipeline(result.Body as unknown as Readable, createWriteStream(destinationPath));
+  }
+
   async delete(key: string): Promise<void> {
     this.assertConfigured();
 
@@ -100,13 +117,17 @@ export class S3StorageProvider implements StorageProvider {
     );
   }
 
-  async createDownloadUrl(key: string, fileName: string): Promise<StorageDownloadAccess> {
+  async createDownloadUrl(
+    key: string,
+    fileName: string,
+    contentType = "application/pdf",
+  ): Promise<StorageDownloadAccess> {
     this.assertConfigured();
 
     const command = new GetObjectCommand({
       Bucket: this.bucketName(),
       Key: key,
-      ResponseContentType: "application/pdf",
+      ResponseContentType: contentType,
       ResponseContentDisposition: `attachment; filename="${sanitizeFileName(fileName)}"`,
     });
 

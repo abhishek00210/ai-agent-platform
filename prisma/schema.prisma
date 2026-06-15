@@ -163,6 +163,29 @@ enum RealtimeSessionStatus {
   FAILED
 }
 
+enum RecordingStatus {
+  PENDING
+  RECORDING
+  PROCESSING
+  AVAILABLE
+  FAILED
+  DELETED
+}
+
+enum TranscriptStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum SpeakerType {
+  USER
+  ASSISTANT
+  SYSTEM
+  UNKNOWN
+}
+
 model Organization {
   id        String             @id @default(uuid())
   name      String
@@ -194,6 +217,8 @@ model Organization {
   calls                Call[]
   callSessions         CallSession[]
   realtimeSessions     RealtimeSession[]
+  callRecordings       CallRecording[]
+  callTranscripts      CallTranscript[]
   invitations          OrganizationInvitation[]
   auditEvents          AuditEvent[]
 
@@ -396,6 +421,8 @@ model Call {
   phoneNumber      PhoneNumber       @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
   sessions         CallSession[]
   realtimeSessions RealtimeSession[]
+  recordings       CallRecording[]
+  transcripts      CallTranscript[]
 
   @@index([organizationId])
   @@index([phoneNumberId])
@@ -422,6 +449,7 @@ model CallSession {
   organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   call            Call             @relation(fields: [callId], references: [id], onDelete: Cascade)
   realtimeSession RealtimeSession?
+  recordings      CallRecording[]
 
   @@index([organizationId])
   @@index([callId])
@@ -429,6 +457,95 @@ model CallSession {
   @@index([streamSid])
   @@index([status])
   @@map("call_sessions")
+}
+
+model CallRecording {
+  id                   String          @id @default(uuid())
+  organizationId       String
+  callId               String
+  callSessionId        String
+  twilioCallSid        String
+  storageProvider      String?
+  storagePath          String?
+  fileName             String
+  mimeType             String          @default("audio/wav")
+  durationSeconds      Int?
+  fileSizeBytes        Int?
+  status               RecordingStatus @default(PENDING)
+  recordingStartedAt   DateTime?
+  recordingCompletedAt DateTime?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  call         Call            @relation(fields: [callId], references: [id], onDelete: Cascade)
+  callSession  CallSession     @relation(fields: [callSessionId], references: [id], onDelete: Cascade)
+  transcript   CallTranscript?
+
+  @@unique([callSessionId])
+  @@index([organizationId])
+  @@index([callId])
+  @@index([callSessionId])
+  @@index([twilioCallSid])
+  @@index([status])
+  @@index([createdAt])
+  @@map("call_recordings")
+}
+
+model CallTranscript {
+  id               String           @id @default(uuid())
+  organizationId   String
+  callId           String
+  callRecordingId  String           @unique
+  conversationId   String?
+  status           TranscriptStatus @default(PENDING)
+  language         String?
+  provider         String?
+  durationSeconds  Int?
+  wordCount        Int              @default(0)
+  confidence       Float?
+  fullText         String           @default("") @db.Text
+  summary          String?          @db.Text
+  failureReason    String?          @db.Text
+  processingTimeMs Int?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  organization  Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  call          Call                    @relation(fields: [callId], references: [id], onDelete: Cascade)
+  callRecording CallRecording           @relation(fields: [callRecordingId], references: [id], onDelete: Cascade)
+  conversation  Conversation?           @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  segments      CallTranscriptSegment[]
+
+  @@index([organizationId])
+  @@index([callId])
+  @@index([conversationId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([organizationId, status, createdAt])
+  @@map("call_transcripts")
+}
+
+model CallTranscriptSegment {
+  id           String      @id @default(uuid())
+  transcriptId String
+  speaker      SpeakerType @default(UNKNOWN)
+  startMs      Int
+  endMs        Int
+  text         String      @db.Text
+  confidence   Float?
+  sequence     Int
+  createdAt    DateTime    @default(now())
+
+  transcript CallTranscript @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+
+  @@unique([transcriptId, sequence])
+  @@index([transcriptId])
+  @@index([speaker])
+  @@index([sequence])
+  @@map("call_transcript_segments")
 }
 
 model RealtimeSession {
@@ -671,18 +788,20 @@ model KnowledgeChunk {
 }
 
 model KnowledgeEmbedding {
-  id              String   @id @default(uuid())
+  id              String                       @id @default(uuid())
   organizationId  String
-  chunkId         String   @unique
+  chunkId         String                       @unique
   embeddingModel  String
   embeddingVector Float[]
+  embeddingNative Unsupported("vector(1536)")? @map("embedding")
   dimensions      Int
-  createdAt       DateTime @default(now())
+  createdAt       DateTime                     @default(now())
 
   organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   chunk        KnowledgeChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
+  @@index([organizationId, embeddingModel])
   @@index([embeddingModel])
   @@index([dimensions])
   @@index([createdAt])
@@ -711,6 +830,7 @@ model Conversation {
   memories        ConversationMemory[]
   memoryFacts     MemoryFact[]
   realtimeSession RealtimeSession?
+  callTranscripts CallTranscript[]
 
   @@index([organizationId])
   @@index([agentId])

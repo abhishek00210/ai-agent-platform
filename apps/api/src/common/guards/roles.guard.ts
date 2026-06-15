@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import type { Request } from "express";
+import type { FastifyRequest } from "fastify";
 import type { MemberRole } from "@ai-agent-platform/types";
 import { ROLES_KEY } from "../decorators/roles.decorator";
 import type { JwtPayload } from "../../modules/auth/auth.types";
@@ -19,7 +19,9 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<Request & { user?: JwtPayload }>();
+    const request = context
+      .switchToHttp()
+      .getRequest<FastifyRequest & { user?: JwtPayload }>();
     const userRole = request.user?.role;
 
     return Boolean(userRole && requiredRoles.includes(userRole));

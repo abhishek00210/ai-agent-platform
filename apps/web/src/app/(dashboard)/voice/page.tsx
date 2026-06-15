@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AudioLines,
   CheckCircle2,
+  FileAudio,
+  FileText,
   Gauge,
   PhoneCall,
   RefreshCcw,
@@ -80,6 +82,64 @@ export default function VoicePage() {
           loading={dashboard.isLoading}
         />
         <MetricCard label="Active" value={stats?.activeNumbers} loading={dashboard.isLoading} />
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <RealtimeMetric
+          label="Transcripts"
+          value={stats?.totalTranscripts}
+          loading={dashboard.isLoading}
+          icon={FileText}
+        />
+        <RealtimeMetric
+          label="Completed"
+          value={stats?.completedTranscripts}
+          loading={dashboard.isLoading}
+          icon={CheckCircle2}
+        />
+        <RealtimeMetric
+          label="Processing"
+          value={stats?.processingTranscripts}
+          loading={dashboard.isLoading}
+          icon={RefreshCcw}
+        />
+        <RealtimeMetric
+          label="Average Confidence"
+          value={
+            stats?.averageTranscriptConfidence == null
+              ? "Unavailable"
+              : `${Math.round(stats.averageTranscriptConfidence * 100)}%`
+          }
+          loading={dashboard.isLoading}
+          icon={Gauge}
+        />
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <RealtimeMetric
+          label="Recordings"
+          value={stats?.totalRecordings}
+          loading={dashboard.isLoading}
+          icon={FileAudio}
+        />
+        <RealtimeMetric
+          label="Available"
+          value={stats?.availableRecordings}
+          loading={dashboard.isLoading}
+          icon={CheckCircle2}
+        />
+        <RealtimeMetric
+          label="Recording Failed"
+          value={stats?.failedRecordings}
+          loading={dashboard.isLoading}
+          icon={XCircle}
+        />
+        <RealtimeMetric
+          label="Storage Used"
+          value={formatBytes(stats?.recordingStorageBytes ?? 0)}
+          loading={dashboard.isLoading}
+          icon={FileAudio}
+        />
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -227,6 +287,16 @@ export default function VoicePage() {
       </section>
     </div>
   );
+}
+
+function formatBytes(value: number) {
+  if (value < 1024) {
+    return `${value} B`;
+  }
+  if (value < 1024 * 1024) {
+    return `${(value / 1024).toFixed(1)} KB`;
+  }
+  return `${(value / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function MetricCard({

@@ -5,7 +5,7 @@ import {
   Injectable,
   Logger,
 } from "@nestjs/common";
-import type { Request } from "express";
+import type { FastifyRequest } from "fastify";
 import { TwilioSignatureService } from "../twilio/twilio-signature.service";
 import { normalizeE164 } from "./e164";
 import { CallRepository } from "./repositories/call.repository";
@@ -24,8 +24,9 @@ export class TwilioWebhookGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<Request>();
-    const signature = request.header("X-Twilio-Signature");
+    const request = context.switchToHttp().getRequest<FastifyRequest>();
+    const header = request.headers["x-twilio-signature"];
+    const signature = Array.isArray(header) ? header[0] : header;
     const params = normalizeParams(request.body);
     const valid = this.signatures.validateRequest({
       url: this.webhookUrls.voiceUrl(),

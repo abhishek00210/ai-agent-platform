@@ -9,6 +9,14 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   constructor(config: ConfigService<RawEnv>) {
     const adapter = new PrismaPg({
       connectionString: config.getOrThrow<string>("database.url", { infer: true }),
+      max: config.get<number>("database.poolMax", { infer: true }) ?? 20,
+      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 30_000,
+      query_timeout: config.get<number>("database.queryTimeoutMs", { infer: true }) ?? 5_000,
+      statement_timeout:
+        config.get<number>("database.queryTimeoutMs", { infer: true }) ?? 5_000,
+      application_name: "ai-agent-platform-api",
+      options: "-c hnsw.iterative_scan=strict_order",
     });
 
     super({ adapter });

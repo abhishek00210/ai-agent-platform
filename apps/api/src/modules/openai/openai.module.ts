@@ -24,5 +24,6 @@ import { ResponseGenerationService } from "./response-generation.service";
     ConversationRepository,
     MessageRepository,
   ],
+  exports: [OpenAiProvider, OpenAiConfigService],
 })
 export class OpenAiModule {}
